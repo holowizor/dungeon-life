@@ -15,7 +15,6 @@ import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
 import kotlin.random.Random
 
-
 open class BaseScreen : Screen, InputProcessor {
     val mainStage = Stage()
     val uiStage = Stage()
@@ -132,9 +131,6 @@ abstract class BaseActor : Actor {
             cam.position.y = y + originY + bH
         }
 
-        // bound camera to layout
-        //cam.position.x = MathUtils.clamp(cam.position.x, cam.viewportWidth / 2, worldBounds.width - cam.viewportWidth / 2)
-        //cam.position.y = MathUtils.clamp(cam.position.y, cam.viewportHeight / 2, worldBounds.height - cam.viewportHeight / 2)
         cam.update()
     }
 

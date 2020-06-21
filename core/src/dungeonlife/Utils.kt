@@ -1,9 +1,11 @@
 package dungeonlife
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.graphics.g2d.TextureRegion
+import com.badlogic.gdx.math.MathUtils
 
 object textureHelper {
 
@@ -43,5 +45,10 @@ object textureHelper {
         }
 
         return anim
+    }
+
+    fun boundCameraToLayout(cam: Camera, worldWidth: Float, worldHeight: Float) {
+        cam.position.x = MathUtils.clamp(cam.position.x, cam.viewportWidth / 2, worldWidth - cam.viewportWidth / 2)
+        cam.position.y = MathUtils.clamp(cam.position.y, cam.viewportHeight / 2, worldHeight - cam.viewportHeight / 2)
     }
 }

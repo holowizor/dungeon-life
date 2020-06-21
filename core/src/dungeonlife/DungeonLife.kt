@@ -16,7 +16,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 
-
 class MenuScreen : BaseScreen() {
     init {
         val uiTable = Table()
@@ -48,6 +47,16 @@ class MenuScreen : BaseScreen() {
         return false
     }
 }
+
+class MapScreen: BaseScreen() {
+    init {
+        val map = MapReader.readMap("backyard.json")
+        // add tiles to main Screen
+        // this.mainStage
+    }
+}
+
+// object with hero state
 
 
 //object worldBounds {
