@@ -4,8 +4,11 @@ import com.badlogic.gdx.Game
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.InputMultiplexer
+import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.Texture
+import com.badlogic.gdx.graphics.g2d.Batch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
+import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.InputEvent.Type
@@ -15,6 +18,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Button
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
+import kotlin.random.Random
 
 class MenuScreen : BaseScreen() {
     init {
@@ -48,112 +52,54 @@ class MenuScreen : BaseScreen() {
     }
 }
 
-class MapScreen: BaseScreen() {
+class MapScreen : BaseScreen() {
     init {
         val map = MapReader.readMap("backyard.json")
-        // add tiles to main Screen
-        // this.mainStage
-    }
-}
-
-// object with hero state
-
-
-//object worldBounds {
-//    var width: Float = 0f;
-//    var height: Float = 0f;
-//}
-
-//class Dungeon : Actor {
-//    constructor(x: Float, y: Float, s: Stage) {
-//        this.x = x
-//        this.y = y
-//        s.addActor(this)
-//
-//        this.width = 3500f
-//        this.height = 4000f
-//
-//        worldBounds.width = this.width
-//        worldBounds.height = this.height
-//    }
-//
-//    var texture = TextureRegion(Texture(Gdx.files.internal("sample-bg.jpg")))
-//
-//    override fun draw(batch: Batch, parentAlpha: Float) {
-//        super.draw(batch, parentAlpha)
-//
-//        batch.draw(texture,
-//                x, y, originX, originY,
-//                width, height, scaleX, scaleY, rotation)
-//    }
-//}
-
-class Knight(x: Float, y: Float, stage: Stage) : BaseActor(x, y, stage) {
-    val anim1 = textureHelper.loadAnimation("knight_l.png", 16, 32, 1, 9)//loadAnimationFromFiles()
-    val anim2 = textureHelper.loadAnimation("knight_r.png", 16, 32, 1, 9)//loadAnimationFromFiles()
-
-    fun anim1() {
-        animation = anim1
-    }
-
-    fun anim2() {
-        animation = anim2
-    }
-
-    override fun act(dt: Float) {
-        super.act(dt)
-        alignCamera()
-    }
-}
-
-fun Stage.knight(init: Knight.() -> Unit): Knight {
-    val actor = Knight(0f, 0f, this)
-    actor.init()
-    return actor
-}
-
-class LevelScreen : BaseScreen() {
-
-    //val dungeon = Dungeon(0f, 0f, this.mainStage)
-    val world = World(mainStage)
-    val knight = mainStage.knight {
-        x = world.spawnPoint.x
-        y = world.spawnPoint.y
-        width = 16f
-        height = 32f
-        animation = anim1
-        maxSpeed = 200f
-        deceleration = 300f
-        moveByPossibleFun = { dx, dy -> world.inside(this.x + dx, this.y + dy) }
-    }
-    val sword = Sword(knight, mainStage)
-
-    override fun render(dt: Float) {
-        if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
-            knight.accelerateAtAngle(180f)
-            knight.anim1()
+        val textureMap = HashMap<Int, TextureRegion>()
+        map.textures.forEach { texture -> textureMap.putAll(TextureMapReader.readTextureMap(texture.firstGid, texture.source)) }
+        map.tileMap.forEach { tileCoordinates, mapTile ->
+            mapTile.gids.forEach {
+                Tile(textureMap[it]!!, tileCoordinates.x, -tileCoordinates.y, map.tileWidth, mainStage)
+            }
         }
-        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
-            knight.accelerateAtAngle(0f)
-            knight.anim2()
-        }
+    }
+
+    override fun keyDown(keyCode: Int): Boolean {
         if (Gdx.input.isKeyPressed(Input.Keys.UP))
-            knight.accelerateAtAngle(90f)
+            mainStage.camera.position.y+=20
         if (Gdx.input.isKeyPressed(Input.Keys.DOWN))
-            knight.accelerateAtAngle(270f)
+            mainStage.camera.position.y-=20
+        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT))
+            mainStage.camera.position.x+=20
+        if (Gdx.input.isKeyPressed(Input.Keys.LEFT))
+            mainStage.camera.position.x-=20
 
-        if (Gdx.input.isKeyPressed(Input.Keys.SPACE))
-            if (!sword.hasActions())
-                sword.addAction(Actions.rotateBy(360f, 0.25f))
+        if (Gdx.input.isKeyPressed(Input.Keys.ESCAPE)) Gdx.app.exit()
 
-        super.render(dt)
+        return false
+    }
+}
+
+class Tile(val tex: TextureRegion, gridX: Int, gridY: Int, tileWidth: Int, s: Stage) : Actor() {
+    init {
+        x = gridX.toFloat() * 16
+        y = gridY.toFloat() * 16
+        width = tileWidth.toFloat()
+        height = tileWidth.toFloat()
+
+        s.addActor(this)
+    }
+
+    override fun draw(batch: Batch, parentAlpha: Float) {
+        batch.draw(tex, x, y);
+        super.draw(batch, parentAlpha)
     }
 }
 
 object DungeonLife : Game() {
     override fun create() {
         Gdx.input.inputProcessor = InputMultiplexer()
-        screen = MenuScreen()
+        screen = MapScreen()
         // a hack?
         screen.show()
     }

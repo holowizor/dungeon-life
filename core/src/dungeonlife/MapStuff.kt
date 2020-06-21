@@ -43,7 +43,7 @@ object MapReader {
 
 class LevelMap(val tileWidth: Int = 16, val textures: List<MapTexture> = ArrayList(), val tileMap: Map<TileCoordinates, MapTile> = HashMap())
 
-class MapTexture(val firstGid: Int, source: String)
+class MapTexture(val firstGid: Int, val source: String)
 
 class MapTile(val gids: MutableList<Int> = ArrayList())
 

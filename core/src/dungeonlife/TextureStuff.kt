@@ -6,8 +6,37 @@ import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.MathUtils
+import com.badlogic.gdx.utils.JsonReader
 
-object textureHelper {
+object TextureMapReader {
+
+    fun readTextureMap(initGid: Int, textureMapAsset: String): Map<Int, TextureRegion> {
+        val textureMap = HashMap<Int, TextureRegion>()
+
+        val json = JsonReader()
+        val base = json.parse(Gdx.files.internal(textureMapAsset))
+
+        val textureFile = base.getString("image")
+        val cols = base.getInt("columns")
+        val tileWidth = base.getInt("tilewidth")
+
+        // TODO parse tiles[{id, type}]
+
+        val texture = Texture(Gdx.files.internal(textureFile))
+        texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
+        val temp = TextureRegion.split(texture, tileWidth, tileWidth)
+
+        temp.forEachIndexed { row, arrayOfTextureRegions ->
+            arrayOfTextureRegions.forEachIndexed { col, textureRegion ->
+                textureMap[row * cols + col + initGid] = textureRegion
+            }
+        }
+
+        return textureMap
+    }
+}
+
+object TextureHelper {
 
     fun loadTexture(path: String) = TextureRegion(Texture(Gdx.files.internal(path)))
 
