@@ -7,11 +7,12 @@ import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.utils.JsonReader
+import com.badlogic.gdx.utils.JsonValue
 
 object TextureMapReader {
 
-    fun readTextureMap(initGid: Int, textureMapAsset: String): Map<Int, TextureRegion> {
-        val textureMap = HashMap<Int, TextureRegion>()
+    fun readTextureMap(initGid: Int, textureMapAsset: String): Map<Int, TypedTexture> {
+        val textureMap = HashMap<Int, TypedTexture>()
 
         val json = JsonReader()
         val base = json.parse(Gdx.files.internal(textureMapAsset))
@@ -20,7 +21,7 @@ object TextureMapReader {
         val cols = base.getInt("columns")
         val tileWidth = base.getInt("tilewidth")
 
-        // TODO parse tiles[{id, type}]
+        val tileTypesMap = parseTiles(base.get("tiles").asIterable())
 
         val texture = Texture(Gdx.files.internal(textureFile))
         texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
@@ -28,13 +29,22 @@ object TextureMapReader {
 
         temp.forEachIndexed { row, arrayOfTextureRegions ->
             arrayOfTextureRegions.forEachIndexed { col, textureRegion ->
-                textureMap[row * cols + col + initGid] = textureRegion
+                val gid = row * cols + col
+                textureMap[gid + initGid] = TypedTexture(textureRegion, tileTypesMap.getOrDefault(gid, "none"))
             }
         }
 
         return textureMap
     }
+
+    private fun parseTiles(tiles: Iterable<JsonValue>): Map<Int, String> {
+        val tileTypesMap = HashMap<Int, String>()
+        tiles.forEach { tileTypesMap[it.getInt("id")] = it.getString("type") }
+        return tileTypesMap
+    }
 }
+
+class TypedTexture(val textureRegion: TextureRegion, val type: String)
 
 object TextureHelper {
 

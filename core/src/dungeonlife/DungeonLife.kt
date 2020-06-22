@@ -4,7 +4,6 @@ import com.badlogic.gdx.Game
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.InputMultiplexer
-import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.Batch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
@@ -13,12 +12,10 @@ import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.InputEvent.Type
 import com.badlogic.gdx.scenes.scene2d.Stage
-import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.Button
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
-import kotlin.random.Random
 
 class MenuScreen : BaseScreen() {
     init {
@@ -53,26 +50,31 @@ class MenuScreen : BaseScreen() {
 }
 
 class MapScreen : BaseScreen() {
+    // can walk just on "floor" types
+    val tileTypesMap = HashMap<TileCoordinates, MutableSet<String>>()
+
     init {
         val map = MapReader.readMap("backyard.json")
-        val textureMap = HashMap<Int, TextureRegion>()
+        val textureMap = HashMap<Int, TypedTexture>()
         map.textures.forEach { texture -> textureMap.putAll(TextureMapReader.readTextureMap(texture.firstGid, texture.source)) }
         map.tileMap.forEach { tileCoordinates, mapTile ->
             mapTile.gids.forEach {
-                Tile(textureMap[it]!!, tileCoordinates.x, -tileCoordinates.y, map.tileWidth, mainStage)
+                // FIXME add empty texture here! with empty type!
+                Tile(textureMap[it]!!.textureRegion, tileCoordinates.x, -tileCoordinates.y, map.tileWidth, mainStage)
+                tileTypesMap.getOrPut(TileCoordinates(tileCoordinates.x, -tileCoordinates.y)) { mutableSetOf() }.add(textureMap[it]!!.type)
             }
         }
     }
 
     override fun keyDown(keyCode: Int): Boolean {
         if (Gdx.input.isKeyPressed(Input.Keys.UP))
-            mainStage.camera.position.y+=20
+            mainStage.camera.position.y += 20
         if (Gdx.input.isKeyPressed(Input.Keys.DOWN))
-            mainStage.camera.position.y-=20
+            mainStage.camera.position.y -= 20
         if (Gdx.input.isKeyPressed(Input.Keys.RIGHT))
-            mainStage.camera.position.x+=20
+            mainStage.camera.position.x += 20
         if (Gdx.input.isKeyPressed(Input.Keys.LEFT))
-            mainStage.camera.position.x-=20
+            mainStage.camera.position.x -= 20
 
         if (Gdx.input.isKeyPressed(Input.Keys.ESCAPE)) Gdx.app.exit()
 
