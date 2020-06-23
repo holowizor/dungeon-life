@@ -13,7 +13,6 @@ import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
-import kotlin.random.Random
 
 open class BaseScreen : Screen, InputProcessor {
     val mainStage = Stage()
@@ -100,10 +99,10 @@ abstract class BaseActor : Actor {
 
     lateinit var animation: Animation<TextureRegion>
 
-    private var elapsedTime = 0f
-    private val velocityVec: Vector2 = Vector2(0f, 0f)
-    private val accelerationVec: Vector2 = Vector2(0f, 0f)
-    private var acceleration = 400f
+    protected var elapsedTime = 0f
+    protected val velocityVec: Vector2 = Vector2(0f, 0f)
+    protected val accelerationVec: Vector2 = Vector2(0f, 0f)
+    var acceleration = 400f
     var maxSpeed = 100f
     var deceleration = 400f
     var moveByPossibleFun: (dx: Float, dy: Float) -> Boolean = { dx, dy -> true }
@@ -176,5 +175,40 @@ abstract class BaseActor : Actor {
                 x, y, originX, originY,
                 width, height, scaleX, scaleY, rotation);
         super.draw(batch, parentAlpha)
+    }
+}
+
+open class AnimatedActor(x: Float, y: Float, s: Stage,
+                         val animRight: Animation<TextureRegion>,
+                         val animLeft: Animation<TextureRegion>,
+                         val animIdleRight: Animation<TextureRegion>,
+                         val animIdleLeft: Animation<TextureRegion>) : BaseActor(x, y, s) {
+    var moveRight = true
+    var idleAnim = true
+
+    init {
+        super.animation = animIdleRight
+        moveRight = true
+        idleAnim = true
+    }
+
+    override fun act(dt: Float) {
+        super.act(dt)
+        setActiveAnimation()
+    }
+
+    private fun setActiveAnimation() {
+        if (velocityVec.len() > 0f) {
+            val tmp = moveRight
+            moveRight = !(velocityVec.angle() > 90 && velocityVec.angle() < 270)
+            if (tmp != moveRight || idleAnim) {
+                elapsedTime = 0f
+                super.animation = if (moveRight) animRight else animLeft
+                idleAnim = false
+            }
+        } else {
+            idleAnim = true
+            super.animation = if (moveRight) animIdleRight else animIdleLeft
+        }
     }
 }

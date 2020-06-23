@@ -5,6 +5,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.graphics.Texture
+import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.graphics.g2d.Batch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.scenes.scene2d.Actor
@@ -49,9 +50,10 @@ class MenuScreen : BaseScreen() {
     }
 }
 
-class MapScreen : BaseScreen() {
+class BackyardScreen : BaseScreen() {
     // can walk just on "floor" types
     val tileTypesMap = HashMap<TileCoordinates, MutableSet<String>>()
+    val knight: Knight
 
     init {
         val map = MapReader.readMap("backyard.json")
@@ -64,21 +66,31 @@ class MapScreen : BaseScreen() {
                 tileTypesMap.getOrPut(TileCoordinates(tileCoordinates.x, -tileCoordinates.y)) { mutableSetOf() }.add(textureMap[it]!!.type)
             }
         }
+        knight = Knight(0f, 0f, mainStage,
+                TextureHelper.loadAnimation("elite-knight-walk-right.png", 32, 32, 0, 4),
+                TextureHelper.loadAnimation("elite-knight-walk-left.png", 32, 32, 0, 4),
+                TextureHelper.loadAnimation("elite-knight-idle-right.png", 32, 32, 0, 1),
+                TextureHelper.loadAnimation("elite-knight-idle-left.png", 32, 32, 0, 1))
     }
 
     override fun keyDown(keyCode: Int): Boolean {
-        if (Gdx.input.isKeyPressed(Input.Keys.UP))
-            mainStage.camera.position.y += 20
-        if (Gdx.input.isKeyPressed(Input.Keys.DOWN))
-            mainStage.camera.position.y -= 20
-        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT))
-            mainStage.camera.position.x += 20
-        if (Gdx.input.isKeyPressed(Input.Keys.LEFT))
-            mainStage.camera.position.x -= 20
-
-        if (Gdx.input.isKeyPressed(Input.Keys.ESCAPE)) Gdx.app.exit()
+        when (keyCode) {
+            Input.Keys.ESCAPE -> Gdx.app.exit()
+        }
 
         return false
+    }
+
+    override fun render(dt: Float) {
+        super.render(dt)
+        if (Gdx.input.isKeyPressed(Input.Keys.LEFT))
+            knight.accelerateAtAngle(180f)
+        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT))
+            knight.accelerateAtAngle(0f)
+        if (Gdx.input.isKeyPressed(Input.Keys.UP))
+            knight.accelerateAtAngle(90f)
+        if (Gdx.input.isKeyPressed(Input.Keys.DOWN))
+            knight.accelerateAtAngle(270f)
     }
 }
 
@@ -98,10 +110,26 @@ class Tile(val tex: TextureRegion, gridX: Int, gridY: Int, tileWidth: Int, s: St
     }
 }
 
+class Knight(x: Float, y: Float, s: Stage, animRight: Animation<TextureRegion>, animLeft: Animation<TextureRegion>,
+             animIdleRight: Animation<TextureRegion>, animIdleLeft: Animation<TextureRegion>) : AnimatedActor(x, y, s, animRight, animLeft, animIdleRight, animIdleLeft) {
+    init {
+        width = 32f
+        height = 32f
+
+        maxSpeed = 200f
+        deceleration = 300f
+    }
+
+    override fun act(dt: Float) {
+        super.act(dt)
+        alignCamera()
+    }
+}
+
 object DungeonLife : Game() {
     override fun create() {
         Gdx.input.inputProcessor = InputMultiplexer()
-        screen = MapScreen()
+        screen = BackyardScreen()
         // a hack?
         screen.show()
     }
