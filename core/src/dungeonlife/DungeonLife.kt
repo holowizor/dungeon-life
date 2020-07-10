@@ -66,11 +66,59 @@ class BackyardScreen : BaseScreen() {
                 tileTypesMap.getOrPut(TileCoordinates(tileCoordinates.x, -tileCoordinates.y)) { mutableSetOf() }.add(textureMap[it]!!.type)
             }
         }
-        knight = Knight(0f, 0f, mainStage,
+        val spawn = map.objectMap["spawn"]
+        knight = Knight(spawn!!.x, -spawn!!.y, mainStage,
                 TextureHelper.loadAnimation("elite-knight-walk-right.png", 32, 32, 0, 4),
                 TextureHelper.loadAnimation("elite-knight-walk-left.png", 32, 32, 0, 4),
                 TextureHelper.loadAnimation("elite-knight-idle-right.png", 32, 32, 0, 1),
                 TextureHelper.loadAnimation("elite-knight-idle-left.png", 32, 32, 0, 1))
+        knight.moveByPossibleFun = { dx, dy -> tileTypesMap[TileCoordinates(((knight.x+dx)/16).toInt(), ((knight.y+dy)/16).toInt())]?.contains("floor") ?: false }
+    }
+
+    override fun keyDown(keyCode: Int): Boolean {
+        when (keyCode) {
+            Input.Keys.ESCAPE -> Gdx.app.exit()
+        }
+
+        return false
+    }
+
+    override fun render(dt: Float) {
+        super.render(dt)
+        if (Gdx.input.isKeyPressed(Input.Keys.LEFT))
+            knight.accelerateAtAngle(180f)
+        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT))
+            knight.accelerateAtAngle(0f)
+        if (Gdx.input.isKeyPressed(Input.Keys.UP))
+            knight.accelerateAtAngle(90f)
+        if (Gdx.input.isKeyPressed(Input.Keys.DOWN))
+            knight.accelerateAtAngle(270f)
+    }
+}
+
+class LevelScreen : BaseScreen() {
+    // can walk just on "floor" types
+    val tileTypesMap = HashMap<TileCoordinates, MutableSet<String>>()
+    val knight: Knight
+
+    init {
+        val map = MapReader.readMap("level1.json")
+        val textureMap = HashMap<Int, TypedTexture>()
+        map.textures.forEach { texture -> textureMap.putAll(TextureMapReader.readTextureMap(texture.firstGid, texture.source)) }
+        map.tileMap.forEach { tileCoordinates, mapTile ->
+            mapTile.gids.forEach {
+                // FIXME add empty texture here! with empty type!
+                Tile(textureMap[it]!!.textureRegion, tileCoordinates.x, -tileCoordinates.y, map.tileWidth, mainStage)
+                tileTypesMap.getOrPut(TileCoordinates(tileCoordinates.x, -tileCoordinates.y)) { mutableSetOf() }.add(textureMap[it]!!.type)
+            }
+        }
+        val spawn = map.objectMap["spawn"]
+        knight = Knight(spawn!!.x, spawn!!.y, mainStage,
+                TextureHelper.loadAnimation("elite-knight-walk-right.png", 32, 32, 0, 4),
+                TextureHelper.loadAnimation("elite-knight-walk-left.png", 32, 32, 0, 4),
+                TextureHelper.loadAnimation("elite-knight-idle-right.png", 32, 32, 0, 1),
+                TextureHelper.loadAnimation("elite-knight-idle-left.png", 32, 32, 0, 1))
+        knight.moveByPossibleFun = { dx, dy -> tileTypesMap[TileCoordinates((dx/16).toInt(), (dy/16).toInt())]?.contains("floor") ?: false }
     }
 
     override fun keyDown(keyCode: Int): Boolean {

@@ -13,13 +13,17 @@ object MapReader {
         val tileWidth = base.getInt("tilewidth", 16)
         val textures = base.get("tilesets").asIterable().map { MapTexture(it.getInt("firstgid"), it.getString("source")) }
         val tiles = parseLayers(base.get("layers").asIterable())
+        val objects = parseObjects(base.get("layers").asIterable())
 
-        return LevelMap(tileWidth, textures, tiles)
+        return LevelMap(tileWidth, textures, tiles, objects)
     }
 
     private fun parseLayers(layers: Iterable<JsonValue>): Map<TileCoordinates, MapTile> {
         val tileMap = HashMap<TileCoordinates, MapTile>()
-        layers.forEach { layer -> layer.get("chunks").asIterable().forEach { chunk -> parseChunk(chunk, tileMap) } }
+        layers.forEach { layer ->
+            if (layer.getString("type") == "tilelayer")
+                layer.get("chunks").asIterable().forEach { chunk -> parseChunk(chunk, tileMap) }
+        }
         return tileMap
     }
 
@@ -30,7 +34,6 @@ object MapReader {
         val data = chunk.get("data").asIntArray()
 
         data.forEachIndexed { index, gid -> if (gid > 0) createOrUpdateTile(x, y, width, index, gid, tileMap) }
-
     }
 
     private fun createOrUpdateTile(chunkStartX: Int, chunkStartY: Int, chunkWidth: Int, index: Int, gid: Int, tileMap: java.util.HashMap<TileCoordinates, MapTile>) {
@@ -39,12 +42,35 @@ object MapReader {
         val tc = TileCoordinates(chunkStartX + cx, chunkStartY + cy)
         tileMap.getOrPut(tc) { MapTile() }.gids.add(gid)
     }
+
+    private fun parseObjects(layers: Iterable<JsonValue>): Map<String, MapObject> {
+        val objectMap = HashMap<String, MapObject>()
+        layers.forEach { layer ->
+            if (layer.getString("type") == "objectgroup")
+                layer.get("objects").asIterable().forEach { obj -> parseObject(obj, objectMap) }
+        }
+        return objectMap
+    }
+
+    private fun parseObject(obj: JsonValue, objMap: MutableMap<String, MapObject>) {
+        val x = obj.getFloat("x")
+        val y = obj.getFloat("y")
+        val name = obj.getString("name")
+        val type = obj.getString("type")
+
+        objMap[name] = MapObject(x, y, type)
+    }
 }
 
-class LevelMap(val tileWidth: Int = 16, val textures: List<MapTexture> = ArrayList(), val tileMap: Map<TileCoordinates, MapTile> = HashMap())
+class LevelMap(val tileWidth: Int = 16,
+               val textures: List<MapTexture> = ArrayList(),
+               val tileMap: Map<TileCoordinates, MapTile> = HashMap(),
+               val objectMap: Map<String, MapObject> = HashMap())
 
 class MapTexture(val firstGid: Int, val source: String)
 
 class MapTile(val gids: MutableList<Int> = ArrayList())
 
 data class TileCoordinates(val x: Int, val y: Int)
+
+class MapObject(val x: Float, val y: Float, val type: String)
