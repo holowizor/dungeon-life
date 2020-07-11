@@ -16,14 +16,27 @@
          "objects":[
                 {
                  "height":0,
-                 "id":1,
+                 "id":2,
                  "name":"spawn",
+                 "point":true,
                  "rotation":0,
                  "type":"spawn",
                  "visible":true,
                  "width":0,
-                 "x":656.5,
-                 "y":-544
+                 "x":649.333333333333,
+                 "y":-532
+                }, 
+                {
+                 "height":0,
+                 "id":3,
+                 "name":"orc",
+                 "point":true,
+                 "rotation":0,
+                 "type":"orc",
+                 "visible":true,
+                 "width":0,
+                 "x":621.333333333333,
+                 "y":-58.6666666666667
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -277,7 +290,7 @@
          "y":0
         }],
  "nextlayerid":5,
- "nextobjectid":2,
+ "nextobjectid":4,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.4.1",

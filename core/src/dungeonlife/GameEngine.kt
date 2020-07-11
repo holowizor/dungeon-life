@@ -9,10 +9,13 @@ import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.graphics.g2d.Batch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
+import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.MathUtils
+import com.badlogic.gdx.math.Polygon
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
+
 
 open class BaseScreen : Screen, InputProcessor {
     val mainStage = Stage()
@@ -102,10 +105,32 @@ abstract class BaseActor : Actor {
     protected var elapsedTime = 0f
     protected val velocityVec: Vector2 = Vector2(0f, 0f)
     protected val accelerationVec: Vector2 = Vector2(0f, 0f)
+    val boundaryPolygon = Polygon(boundaryVerticles())
     var acceleration = 400f
     var maxSpeed = 100f
     var deceleration = 400f
     var moveByPossibleFun: (dx: Float, dy: Float) -> Boolean = { dx, dy -> true }
+
+    open fun boundaryVerticles(): FloatArray = floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f)
+
+    fun thisBoundaryPolygon(): Polygon {
+        boundaryPolygon.setPosition(x, y)
+        boundaryPolygon.setOrigin(originX, originY)
+        boundaryPolygon.setRotation(rotation)
+        boundaryPolygon.setScale(scaleX, scaleY)
+        return boundaryPolygon
+    }
+
+    open fun overlaps(other: BaseActor): Boolean {
+        val poly1: Polygon = this.thisBoundaryPolygon()
+        val poly2: Polygon = other.thisBoundaryPolygon()
+
+        return if (!poly1.boundingRectangle.overlaps(poly2.boundingRectangle)) false else Intersector.overlapConvexPolygons(poly1, poly2)
+    }
+
+    fun distanceFrom(other:BaseActor) = Vector2.dst(this.x, this.y, other.x, other.y)
+
+    fun moveTowards(other:BaseActor) = accelerateAtAngle(Vector2(other.x-this.x, other.y-this.y).angle())
 
     fun alignCamera() {
         val cam: Camera = stage.camera
@@ -135,6 +160,10 @@ abstract class BaseActor : Actor {
 
     fun accelerateAtAngle(angle: Float) {
         accelerationVec.add(Vector2(acceleration, 0f).setAngle(angle))
+    }
+
+    fun stop() {
+        setSpeed(0.0f)
     }
 
     private fun setSpeed(speed: Float) {
