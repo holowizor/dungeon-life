@@ -54,6 +54,7 @@ class BackyardScreen : BaseScreen() {
     // can walk just on "floor" types
     val tileTypesMap = HashMap<TileCoordinates, MutableSet<String>>()
     val knight: Knight
+    val debug: WhitePx
 
     init {
         val map = MapReader.readMap("backyard.json")
@@ -72,7 +73,27 @@ class BackyardScreen : BaseScreen() {
                 TextureHelper.loadAnimation("elite-knight-walk-left.png", 32, 32, 0, 4),
                 TextureHelper.loadAnimation("elite-knight-idle-right.png", 32, 32, 0, 1),
                 TextureHelper.loadAnimation("elite-knight-idle-left.png", 32, 32, 0, 1))
-        knight.moveByPossibleFun = { dx, dy -> tileTypesMap[TileCoordinates(((knight.x+dx)/16).toInt(), ((knight.y+dy)/16).toInt())]?.contains("floor") ?: false }
+        debug = WhitePx(spawn!!.x, -spawn!!.y, mainStage, TextureHelper.loadAnimation("white-px.png", 1, 1, 0, 1), knight)
+
+        knight.moveByPossibleFun = { dx, dy ->
+            floorAt(knight.x + dx + 10, knight.y + dy - 1) &&
+                    floorAt(knight.x + dx + 22, knight.y + dy - 1) &&
+                    floorAt(knight.x + dx + 10, knight.y + dy + 6) &&
+                    floorAt(knight.x + dx + 22, knight.y + dy + 6)
+        }
+    }
+
+    fun floorAt(x: Float, y: Float): Boolean {
+        val adjx = if (x < 0) -1 else 0
+        val adjy = if (y < 0) -1 else 0
+        val tx = (x / 16f).toInt() + adjx
+        val ty = (y / 16f).toInt() + adjy
+        val tiles = tileTypesMap[TileCoordinates(tx, ty)]
+        var result = false
+        tiles?.let {
+            result = !it.contains("wall")
+        }
+        return result
     }
 
     override fun keyDown(keyCode: Int): Boolean {
@@ -118,7 +139,6 @@ class LevelScreen : BaseScreen() {
                 TextureHelper.loadAnimation("elite-knight-walk-left.png", 32, 32, 0, 4),
                 TextureHelper.loadAnimation("elite-knight-idle-right.png", 32, 32, 0, 1),
                 TextureHelper.loadAnimation("elite-knight-idle-left.png", 32, 32, 0, 1))
-        knight.moveByPossibleFun = { dx, dy -> tileTypesMap[TileCoordinates((dx/16).toInt(), (dy/16).toInt())]?.contains("floor") ?: false }
     }
 
     override fun keyDown(keyCode: Int): Boolean {
@@ -158,8 +178,24 @@ class Tile(val tex: TextureRegion, gridX: Int, gridY: Int, tileWidth: Int, s: St
     }
 }
 
+class WhitePx(x: Float, y: Float, s: Stage, anim: Animation<TextureRegion>, val follows: Actor) :
+        BaseActor(x, y, s) {
+    init {
+        animation = anim
+        width = 1f
+        height = 1f
+    }
+
+    override fun act(dt: Float) {
+        super.act(dt)
+        this.x = follows.x
+        this.y = follows.y
+    }
+}
+
 class Knight(x: Float, y: Float, s: Stage, animRight: Animation<TextureRegion>, animLeft: Animation<TextureRegion>,
-             animIdleRight: Animation<TextureRegion>, animIdleLeft: Animation<TextureRegion>) : AnimatedActor(x, y, s, animRight, animLeft, animIdleRight, animIdleLeft) {
+             animIdleRight: Animation<TextureRegion>, animIdleLeft: Animation<TextureRegion>) :
+        AnimatedActor(x, y, s, animRight, animLeft, animIdleRight, animIdleLeft) {
     init {
         width = 32f
         height = 32f
