@@ -1302,6 +1302,14 @@
          "type":"wall"
         }, 
         {
+         "id":836,
+         "type":"stairs"
+        }, 
+        {
+         "id":837,
+         "type":"stairs"
+        }, 
+        {
          "id":843,
          "type":"wall"
         }, 
@@ -1340,6 +1348,14 @@
         {
          "id":852,
          "type":"wall"
+        }, 
+        {
+         "id":868,
+         "type":"stairs"
+        }, 
+        {
+         "id":869,
+         "type":"stairs"
         }, 
         {
          "id":875,

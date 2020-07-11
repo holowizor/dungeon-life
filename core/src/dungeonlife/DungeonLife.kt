@@ -55,6 +55,7 @@ class BackyardScreen : BaseScreen() {
     val tileTypesMap = HashMap<TileCoordinates, MutableSet<String>>()
     val knight: Knight
     val debug: WhitePx
+    val spawn: MapObject
 
     init {
         val map = MapReader.readMap("backyard.json")
@@ -67,13 +68,13 @@ class BackyardScreen : BaseScreen() {
                 tileTypesMap.getOrPut(TileCoordinates(tileCoordinates.x, -tileCoordinates.y)) { mutableSetOf() }.add(textureMap[it]!!.type)
             }
         }
-        val spawn = map.objectMap["spawn"]
-        knight = Knight(spawn!!.x, -spawn!!.y, mainStage,
+        spawn = map.objectMap["spawn"]!!
+        knight = Knight(spawn.x, -spawn.y, mainStage,
                 TextureHelper.loadAnimation("elite-knight-walk-right.png", 32, 32, 0, 4),
                 TextureHelper.loadAnimation("elite-knight-walk-left.png", 32, 32, 0, 4),
                 TextureHelper.loadAnimation("elite-knight-idle-right.png", 32, 32, 0, 1),
                 TextureHelper.loadAnimation("elite-knight-idle-left.png", 32, 32, 0, 1))
-        debug = WhitePx(spawn!!.x, -spawn!!.y, mainStage, TextureHelper.loadAnimation("white-px.png", 1, 1, 0, 1), knight)
+        debug = WhitePx(spawn.x, -spawn.y, mainStage, TextureHelper.loadAnimation("white-px.png", 1, 1, 0, 1), knight)
 
         knight.moveByPossibleFun = { dx, dy ->
             floorAt(knight.x + dx + 10, knight.y + dy - 1) &&
@@ -83,17 +84,22 @@ class BackyardScreen : BaseScreen() {
         }
     }
 
-    fun floorAt(x: Float, y: Float): Boolean {
+    fun reset() {
+        knight.x = spawn.x
+        knight.y = -spawn.y
+    }
+
+    fun tilesAt(x: Float, y: Float): Set<String> {
         val adjx = if (x < 0) -1 else 0
         val adjy = if (y < 0) -1 else 0
         val tx = (x / 16f).toInt() + adjx
         val ty = (y / 16f).toInt() + adjy
-        val tiles = tileTypesMap[TileCoordinates(tx, ty)]
-        var result = false
-        tiles?.let {
-            result = !it.contains("wall")
-        }
-        return result
+        return tileTypesMap.getOrDefault(TileCoordinates(tx, ty), mutableSetOf())
+    }
+
+    fun floorAt(x: Float, y: Float): Boolean {
+        val tiles = tilesAt(x, y)
+        return tiles.size > 0 && !tiles.contains("wall")
     }
 
     override fun keyDown(keyCode: Int): Boolean {
@@ -114,6 +120,15 @@ class BackyardScreen : BaseScreen() {
             knight.accelerateAtAngle(90f)
         if (Gdx.input.isKeyPressed(Input.Keys.DOWN))
             knight.accelerateAtAngle(270f)
+
+        if (tilesAt(knight.x + 10, knight.y - 1).contains("stairs") ||
+                tilesAt(knight.x + 22, knight.y - 1).contains("stairs") ||
+                tilesAt(knight.x + 10, knight.y + 6).contains("stairs") ||
+                tilesAt(knight.x + 22, knight.y + 6).contains("stairs")) {
+
+            reset()
+            DungeonLife.level()
+        }
     }
 }
 
@@ -121,6 +136,7 @@ class LevelScreen : BaseScreen() {
     // can walk just on "floor" types
     val tileTypesMap = HashMap<TileCoordinates, MutableSet<String>>()
     val knight: Knight
+    val spawn: MapObject
 
     init {
         val map = MapReader.readMap("level1.json")
@@ -133,12 +149,37 @@ class LevelScreen : BaseScreen() {
                 tileTypesMap.getOrPut(TileCoordinates(tileCoordinates.x, -tileCoordinates.y)) { mutableSetOf() }.add(textureMap[it]!!.type)
             }
         }
-        val spawn = map.objectMap["spawn"]
-        knight = Knight(spawn!!.x, spawn!!.y, mainStage,
+        spawn = map.objectMap["spawn"]!!
+        knight = Knight(spawn.x, -spawn.y, mainStage,
                 TextureHelper.loadAnimation("elite-knight-walk-right.png", 32, 32, 0, 4),
                 TextureHelper.loadAnimation("elite-knight-walk-left.png", 32, 32, 0, 4),
                 TextureHelper.loadAnimation("elite-knight-idle-right.png", 32, 32, 0, 1),
                 TextureHelper.loadAnimation("elite-knight-idle-left.png", 32, 32, 0, 1))
+
+        knight.moveByPossibleFun = { dx, dy ->
+            floorAt(knight.x + dx + 10, knight.y + dy - 1) &&
+                    floorAt(knight.x + dx + 22, knight.y + dy - 1) &&
+                    floorAt(knight.x + dx + 10, knight.y + dy + 6) &&
+                    floorAt(knight.x + dx + 22, knight.y + dy + 6)
+        }
+    }
+
+    fun reset() {
+        knight.x = spawn.x
+        knight.y = -spawn.y
+    }
+
+    fun tilesAt(x: Float, y: Float): Set<String> {
+        val adjx = if (x < 0) -1 else 0
+        val adjy = if (y < 0) -1 else 0
+        val tx = (x / 16f).toInt() + adjx
+        val ty = (y / 16f).toInt() + adjy
+        return tileTypesMap.getOrDefault(TileCoordinates(tx, ty), mutableSetOf())
+    }
+
+    fun floorAt(x: Float, y: Float): Boolean {
+        val tiles = tilesAt(x, y)
+        return tiles.size > 0 && !tiles.contains("wall")
     }
 
     override fun keyDown(keyCode: Int): Boolean {
@@ -151,6 +192,15 @@ class LevelScreen : BaseScreen() {
 
     override fun render(dt: Float) {
         super.render(dt)
+
+        if (tilesAt(knight.x + 10, knight.y - 1).contains("stairs") ||
+                tilesAt(knight.x + 22, knight.y - 1).contains("stairs") ||
+                tilesAt(knight.x + 10, knight.y + 6).contains("stairs") ||
+                tilesAt(knight.x + 22, knight.y + 6).contains("stairs")) {
+            reset()
+            DungeonLife.backyard()
+        }
+
         if (Gdx.input.isKeyPressed(Input.Keys.LEFT))
             knight.accelerateAtAngle(180f)
         if (Gdx.input.isKeyPressed(Input.Keys.RIGHT))
@@ -211,10 +261,32 @@ class Knight(x: Float, y: Float, s: Stage, animRight: Animation<TextureRegion>, 
 }
 
 object DungeonLife : Game() {
+
+    // BAD DESIGN
+
+    private var backyard: BackyardScreen? = null
+    private var level: LevelScreen? = null
+
     override fun create() {
         Gdx.input.inputProcessor = InputMultiplexer()
-        screen = BackyardScreen()
-        // a hack?
+
+        // BAD DESIGN
+
+        backyard = BackyardScreen()
+        level = LevelScreen()
+
+        backyard()
+    }
+
+    fun level() {
+        level!!.reset()
+        screen = level
+        screen.show()
+    }
+
+    fun backyard() {
+        backyard!!.reset()
+        screen = backyard
         screen.show()
     }
 
