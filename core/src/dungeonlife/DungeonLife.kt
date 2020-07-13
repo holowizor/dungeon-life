@@ -17,44 +17,50 @@ import com.badlogic.gdx.scenes.scene2d.ui.Button
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
 class MenuScreen : BaseScreen() {
     init {
         val uiTable = Table()
-        uiTable.setFillParent(true);
-        uiStage.addActor(uiTable);
+        uiTable.setFillParent(true)
+        uiStage.addActor(uiTable)
 
         val startButtonStyle = TextButtonStyle()
         startButtonStyle.up = TextureRegionDrawable(TextureRegion(Texture(Gdx.files.internal("btn-start.png"))))
-        var startButton = Button(startButtonStyle)
+        val startButton = Button(startButtonStyle)
 
         val quitButtonStyle = TextButtonStyle()
         quitButtonStyle.up = TextureRegionDrawable(TextureRegion(Texture(Gdx.files.internal("btn-quit.png"))))
-        var quitButton = Button(quitButtonStyle)
+        val quitButton = Button(quitButtonStyle)
 
         quitButton.addListener { e: Event ->
             if (e !is InputEvent) return@addListener false
-            if (!(e as InputEvent).getType().equals(Type.touchDown)) return@addListener false
+            if (!e.getType().equals(Type.touchDown)) return@addListener false
             Gdx.app.exit()
             true
         }
 
-        uiTable.row();
-        uiTable.add(startButton);
-        uiTable.add(quitButton);
+        uiTable.row()
+        uiTable.add(startButton)
+        uiTable.add(quitButton)
     }
 
-    override fun keyDown(keyCode: Int): Boolean {
+    override fun keyDown(keycode: Int): Boolean {
         if (Gdx.input.isKeyPressed(Input.Keys.ESCAPE)) Gdx.app.exit()
         return false
     }
 }
 
-abstract class MappedScreen(val mapAsset: String) : BaseScreen() {
+abstract class MappedScreen(mapAsset: String) : BaseScreen() {
     // can walk just on "floor" types
     val tileTypesMap = HashMap<TileCoordinates, MutableSet<String>>()
+
     val knight: Knight
     val orcs = ArrayList<Orc>()
+    val movables = LinkedList<Actor>()
+
     val debug: WhitePx
     val spawn: MapObject
 
@@ -69,13 +75,14 @@ abstract class MappedScreen(val mapAsset: String) : BaseScreen() {
                 tileTypesMap.getOrPut(TileCoordinates(tileCoordinates.x, -tileCoordinates.y)) { mutableSetOf() }.add(textureMap[it]!!.type)
             }
         }
-        spawn = map.objectMap["spawn"]!!
+        spawn = (map.objectMap["spawn"] ?: error("No spawn point"))[0]
         knight = Knight(spawn.x, -spawn.y, mainStage,
                 TextureHelper.loadAnimation("elite-knight-walk-right.png", 32, 32, 0, 4),
                 TextureHelper.loadAnimation("elite-knight-walk-left.png", 32, 32, 0, 4),
                 TextureHelper.loadAnimation("elite-knight-idle-right.png", 32, 32, 0, 1),
                 TextureHelper.loadAnimation("elite-knight-idle-left.png", 32, 32, 0, 1))
         debug = WhitePx(spawn.x, -spawn.y, mainStage, TextureHelper.loadAnimation("white-px.png", 1, 1, 0, 1), knight)
+        movables.add(knight)
 
         knight.moveByPossibleFun = { dx, dy ->
             floorAt(knight.x + dx + 10, knight.y + dy - 1) &&
@@ -83,16 +90,18 @@ abstract class MappedScreen(val mapAsset: String) : BaseScreen() {
                     floorAt(knight.x + dx + 10, knight.y + dy + 6) &&
                     floorAt(knight.x + dx + 22, knight.y + dy + 6)
         }
-        initOrc(map.objectMap["orc"])
+        initOrcs(map.objectMap["orc"])
     }
 
-    fun initOrc(orcObject: MapObject?) {
-        orcObject?.let {
-            orcs.add(Orc(orcObject.x, -orcObject.y, mainStage,
+    private fun initOrcs(orcObjects: List<MapObject>?) {
+        orcObjects?.forEach {
+            val orc = Orc(it.x, -it.y, mainStage,
                     TextureHelper.loadAnimation("orc-warrior-walk-right.png", 16, 20, 0, 4),
                     TextureHelper.loadAnimation("orc-warrior-walk-left.png", 16, 20, 0, 4),
                     TextureHelper.loadAnimation("orc-warrior-idle-right.png", 16, 20, 0, 4),
-                    TextureHelper.loadAnimation("orc-warrior-idle-left.png", 16, 20, 0, 4)))
+                    TextureHelper.loadAnimation("orc-warrior-idle-left.png", 16, 20, 0, 4))
+            orcs.add(orc)
+            movables.add(orc)
         }
     }
 
@@ -114,8 +123,8 @@ abstract class MappedScreen(val mapAsset: String) : BaseScreen() {
         return tiles.size > 0 && !tiles.contains("wall")
     }
 
-    override fun keyDown(keyCode: Int): Boolean {
-        when (keyCode) {
+    override fun keyDown(keycode: Int): Boolean {
+        when (keycode) {
             Input.Keys.ESCAPE -> Gdx.app.exit()
         }
 
@@ -135,7 +144,7 @@ abstract class MappedScreen(val mapAsset: String) : BaseScreen() {
             knight.accelerateAtAngle(270f)
 
         orcs.forEach {
-            if (it.distanceFrom(knight) < 5f*16f) {
+            if (it.distanceFrom(knight) < 5f * 16f && it.state.isAlive()) {
                 it.moveTowards(knight)
             } else {
                 it.stop()
@@ -146,6 +155,9 @@ abstract class MappedScreen(val mapAsset: String) : BaseScreen() {
                 knight.stop()
             }
         }
+
+        movables.sortByDescending { it.y }
+        movables.forEachIndexed { index, actor -> actor.setZIndex(100000 + index) }
     }
 }
 
@@ -170,6 +182,16 @@ class LevelScreen(mapAsset: String) : MappedScreen(mapAsset) {
     override fun render(dt: Float) {
         super.render(dt)
 
+        if (Gdx.input.isKeyPressed(Input.Keys.SPACE)) {
+            // attack all orcs in range
+            orcs.forEach {
+                if (it.distanceFrom(knight) < 16f) {
+                    it.state.decreaseHealth(knight.heroState.attack)
+                    BloodBucket.freshBlood(it.x, it.y, this.mainStage)
+                }
+            }
+        }
+
         if (tilesAt(knight.x + 10, knight.y - 1).contains("stairs") ||
                 tilesAt(knight.x + 22, knight.y - 1).contains("stairs") ||
                 tilesAt(knight.x + 10, knight.y + 6).contains("stairs") ||
@@ -191,7 +213,24 @@ class Tile(val tex: TextureRegion, gridX: Int, gridY: Int, tileWidth: Int, s: St
     }
 
     override fun draw(batch: Batch, parentAlpha: Float) {
-        batch.draw(tex, x, y);
+        batch.draw(tex, x, y)
+        super.draw(batch, parentAlpha)
+    }
+}
+
+class Blood(val tex: TextureRegion, x: Float, y: Float, bloodHeight: Int, bloodWidth: Int, s: Stage, z: Int) : Actor() {
+    init {
+        this.x = x
+        this.y = y
+        width = bloodWidth.toFloat()
+        height = bloodHeight.toFloat()
+
+        s.addActor(this)
+        this.setZIndex(z)
+    }
+
+    override fun draw(batch: Batch, parentAlpha: Float) {
+        batch.draw(tex, x, y)
         super.draw(batch, parentAlpha)
     }
 }
@@ -222,7 +261,8 @@ class Knight(x: Float, y: Float, s: Stage, animRight: Animation<TextureRegion>, 
         deceleration = 300f
     }
 
-    //float[] vertices = {0,0, w,0, w,h, 0,h};
+    val heroState = HeroState()
+
     override fun boundaryVerticles(): FloatArray = floatArrayOf(10f, 0f, 22f, 0f, 22f, 8f, 10f, 8f)
 
     override fun act(dt: Float) {
@@ -242,7 +282,8 @@ class Orc(x: Float, y: Float, s: Stage, animRight: Animation<TextureRegion>, ani
         deceleration = 500f
     }
 
-    //float[] vertices = {0,0, w,0, w,h, 0,h};
+    val state = MonsterState()
+
     override fun boundaryVerticles(): FloatArray = floatArrayOf(2f, 0f, 13f, 0f, 13f, 5f, 2f, 5f)
 
     override fun act(dt: Float) {
@@ -250,10 +291,22 @@ class Orc(x: Float, y: Float, s: Stage, animRight: Animation<TextureRegion>, ani
     }
 }
 
+object BloodBucket {
+    var z = 50000
+
+    val blood = arrayOf(TextureHelper.loadTexture("blood-1.png"),
+            TextureHelper.loadTexture("blood-2.png"),
+            TextureHelper.loadTexture("blood-3.png"),
+            TextureHelper.loadTexture("blood-4.png"),
+            TextureHelper.loadTexture("blood-5.png"),
+            TextureHelper.loadTexture("blood-6.png"))
+
+    fun freshBlood(x: Float, y: Float, s: Stage) = Blood(blood[(Math.random() * 5f).toInt()], x + (Math.random() * 8.0 - 4.0).toFloat(), y + (Math.random() * 8.0 - 4.0).toFloat(), 32, 32, s, z++)
+}
+
 object DungeonLife : Game() {
 
     // BAD DESIGN
-
     private var backyard: BackyardScreen? = null
     private var level: LevelScreen? = null
 
@@ -261,7 +314,6 @@ object DungeonLife : Game() {
         Gdx.input.inputProcessor = InputMultiplexer()
 
         // BAD DESIGN
-
         backyard = BackyardScreen("backyard.json")
         level = LevelScreen("level1.json")
 
@@ -269,13 +321,13 @@ object DungeonLife : Game() {
     }
 
     fun level() {
-        level!!.reset()
+        (level ?: error("No level screen")).reset()
         screen = level
         screen.show()
     }
 
     fun backyard() {
-        backyard!!.reset()
+        (backyard ?: error("No backyard screen")).reset()
         screen = backyard
         screen.show()
     }

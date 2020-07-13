@@ -43,8 +43,8 @@ object MapReader {
         tileMap.getOrPut(tc) { MapTile() }.gids.add(gid)
     }
 
-    private fun parseObjects(layers: Iterable<JsonValue>): Map<String, MapObject> {
-        val objectMap = HashMap<String, MapObject>()
+    private fun parseObjects(layers: Iterable<JsonValue>): Map<String, MutableList<MapObject>> {
+        val objectMap = HashMap<String, MutableList<MapObject>>()
         layers.forEach { layer ->
             if (layer.getString("type") == "objectgroup")
                 layer.get("objects").asIterable().forEach { obj -> parseObject(obj, objectMap) }
@@ -52,20 +52,20 @@ object MapReader {
         return objectMap
     }
 
-    private fun parseObject(obj: JsonValue, objMap: MutableMap<String, MapObject>) {
+    private fun parseObject(obj: JsonValue, objMap: MutableMap<String, MutableList<MapObject>>) {
         val x = obj.getFloat("x")
         val y = obj.getFloat("y")
         val name = obj.getString("name")
         val type = obj.getString("type")
 
-        objMap[name] = MapObject(x, y, type)
+        objMap.getOrPut(type, { ArrayList<MapObject>() }).add(MapObject(x, y, type, name))
     }
 }
 
 class LevelMap(val tileWidth: Int = 16,
                val textures: List<MapTexture> = ArrayList(),
                val tileMap: Map<TileCoordinates, MapTile> = HashMap(),
-               val objectMap: Map<String, MapObject> = HashMap())
+               val objectMap: Map<String, List<MapObject>> = HashMap())
 
 class MapTexture(val firstGid: Int, val source: String)
 
@@ -73,4 +73,4 @@ class MapTile(val gids: MutableList<Int> = ArrayList())
 
 data class TileCoordinates(val x: Int, val y: Int)
 
-class MapObject(val x: Float, val y: Float, val type: String)
+class MapObject(val x: Float, val y: Float, val type: String, val name: String)
