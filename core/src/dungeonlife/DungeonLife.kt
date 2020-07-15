@@ -66,7 +66,7 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
     val debug: WhitePx
     val spawn: MapObject
 
-    val sword: Sword
+    val weapon: Weapon
 
     init {
         val map = MapReader.readMap(mapAsset)
@@ -90,7 +90,7 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
         debug = WhitePx(spawn.x, -spawn.y, mainStage, TextureHelper.loadAnimation("white-px.png", 1, 1, 0, 1), knight)
         movables.add(knight)
 
-        sword = Sword(mainStage, knight, 1000L, 5f,
+        weapon = Weapon(mainStage, knight, 400L, 5f,
                 TextureHelper.loadAnimation("weapon-anime-sword-idle-right.png", 30, 30, 0, 1),
                 TextureHelper.loadAnimation("weapon-anime-sword-idle-left.png", 30, 30, 0, 1),
                 TextureHelper.loadAnimation("weapon-anime-sword-hit-right.png", 30, 30, 0, 1, loop = false),
@@ -157,23 +157,34 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
     override fun render(dt: Float) {
         super.render(dt)
 
-        if (Gdx.input.isKeyPressed(Input.Keys.LEFT))
-            knight.accelerateAtAngle(180f)
-        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT))
-            knight.accelerateAtAngle(0f)
-        if (Gdx.input.isKeyPressed(Input.Keys.UP))
-            knight.accelerateAtAngle(90f)
-        if (Gdx.input.isKeyPressed(Input.Keys.DOWN))
-            knight.accelerateAtAngle(270f)
+        if (!knight.stunned) {
+            if (Gdx.input.isKeyPressed(Input.Keys.LEFT))
+                knight.accelerateAtAngle(180f)
+            if (Gdx.input.isKeyPressed(Input.Keys.RIGHT))
+                knight.accelerateAtAngle(0f)
+            if (Gdx.input.isKeyPressed(Input.Keys.UP))
+                knight.accelerateAtAngle(90f)
+            if (Gdx.input.isKeyPressed(Input.Keys.DOWN))
+                knight.accelerateAtAngle(270f)
+        }
 
+        // FIXME move to level class?
         orcs.forEach {
-            if (it.distanceFrom(knight) < 5f * 16f && it.state.isAlive()) {
-                //it.moveTowards(knight)
-            } else {
-                //it.stop()
+            // detection range
+            if (it.distanceFrom(knight) < it.range && !it.stunned) {
+                if (it.canAttack()) {
+                    it.attack()
+                    //knight.stun()
+                    knight.heroState.decreaseHealth(knight.heroState.attack)
+                    BloodBucket.freshBlood(knight.pos(), this.mainStage)
+                }
             }
 
-            if (it.overlaps(knight)) {
+            if (it.distanceFrom(knight) < it.sight && !it.isDead() && !it.stunned) {
+                it.moveTowards(knight)
+            }
+
+            if (it.overlaps(knight) && !it.isDead()) {
                 it.stop()
                 knight.stop()
             }
@@ -202,28 +213,35 @@ class BackyardScreen(mapAsset: String) : MappedScreen(mapAsset) {
 
 class LevelScreen(mapAsset: String) : MappedScreen(mapAsset) {
 
-    override fun render(dt: Float) {
-        super.render(dt)
+    override fun keyDown(keycode: Int): Boolean {
+        when (keycode) {
+            Input.Keys.SPACE -> {
+                if (!knight.stunned) {
+                    // swing sword
+                    weapon.hit()
 
-        if (Gdx.input.isKeyPressed(Input.Keys.SPACE)) {
-            // swing sword
-            sword.hit()
-            // attack all orcs in range
-            orcs.forEach {
-                // FIXME weapon range instead of 10f
-                if (it.distanceFrom(knight) < 10f) {
-                    val knightPosition = Vector2(knight.x, knight.y)
-                    val orcPosition = Vector2(it.x, it.y)
-                    val hitVector = orcPosition.sub(knightPosition)
+                    // attack all orcs in range
+                    orcs.forEach {
+                        if (it.distanceFrom(knight) < weapon.range) {
+                            println("orc ${it.pos()} knight ${knight.pos()}")
 
-                    it.motionAngle(hitVector.angle());
-                    it.setSpeed(500f)
+                            it.setSpeed(500f)
+                            it.motionAngle(it.pos().sub(knight.pos()).angle());
 
-                    it.state.decreaseHealth(knight.heroState.attack)
-                    BloodBucket.freshBlood(it.x, it.y, this.mainStage)
+                            it.stun()
+                            it.state.decreaseHealth(knight.heroState.attack)
+                            BloodBucket.freshBlood(it.pos(), this.mainStage)
+                        }
+                    }
                 }
             }
         }
+
+        return false
+    }
+
+    override fun render(dt: Float) {
+        super.render(dt)
 
         if (tilesAt(knight.x + 10, knight.y - 1).contains("stairs") ||
                 tilesAt(knight.x + 22, knight.y - 1).contains("stairs") ||
@@ -287,21 +305,38 @@ class Knight(x: Float, y: Float, s: Stage, animRight: Animation<TextureRegion>, 
              animIdleRight: Animation<TextureRegion>, animIdleLeft: Animation<TextureRegion>,
              animDeadRight: Animation<TextureRegion>, animDeadLeft: Animation<TextureRegion>) :
         AnimatedActor(x, y, s, animRight, animLeft, animIdleRight, animIdleLeft, animDeadRight, animDeadLeft) {
+
+    val heroState = HeroState()
+    val stunnedMillis: Long
+    var stunned = false
+    var stunTime = 0L
+
     init {
         width = 32f
         height = 32f
 
-        maxSpeed = 200f
-        deceleration = 300f
+        maxSpeed = 75f
+        deceleration = 100f
+        midPoint = Vector2(17f, 8f)
+
+        stunnedMillis = 500L
     }
 
-    val heroState = HeroState()
+
+    fun stun() {
+        stunTime = System.currentTimeMillis()
+        stunned = true
+    }
 
     override fun boundaryVerticles(): FloatArray = floatArrayOf(10f, 0f, 22f, 0f, 22f, 8f, 10f, 8f)
 
     override fun act(dt: Float) {
         super.act(dt)
         alignCamera()
+
+        if (stunned && System.currentTimeMillis() - stunTime > stunnedMillis) {
+            stunned = false
+        }
     }
 }
 
@@ -309,20 +344,51 @@ class Orc(x: Float, y: Float, s: Stage, animRight: Animation<TextureRegion>, ani
           animIdleRight: Animation<TextureRegion>, animIdleLeft: Animation<TextureRegion>,
           animDeadRight: Animation<TextureRegion>, animDeadLeft: Animation<TextureRegion>) :
         AnimatedActor(x, y, s, animRight, animLeft, animIdleRight, animIdleLeft, animDeadRight, animDeadLeft) {
+
+    val state = MonsterState()
+    val sight: Float
+    val range: Float
+    val attack: Float
+    val attackCooldown = 500L
+    val stunnedMillis: Long
+    var stunned = false
+    var stunTime = 0L
+    var attacked = 0L
+
     init {
         width = 16f
         height = 20f
 
-        maxSpeed = 100f
-        deceleration = 500f
+        maxSpeed = 25f
+        deceleration = 100f
+        midPoint = Vector2(6f, 6f)
+
+        stunnedMillis = 500L
+        sight = 5f * 16f
+        range = 10f
+        attack = 40f
     }
 
-    val state = MonsterState()
+    fun stun() {
+        stunTime = System.currentTimeMillis()
+        stunned = true
+    }
+
+    fun attack() {
+        attacked = System.currentTimeMillis()
+    }
+
+    fun canAttack() = System.currentTimeMillis() - attacked > attackCooldown
+
+    override fun isDead() = !state.isAlive()
 
     override fun boundaryVerticles(): FloatArray = floatArrayOf(2f, 0f, 13f, 0f, 13f, 5f, 2f, 5f)
 
     override fun act(dt: Float) {
         super.act(dt)
+        if (stunned && System.currentTimeMillis() - stunTime > stunnedMillis) {
+            stunned = false
+        }
     }
 }
 
@@ -336,17 +402,19 @@ object BloodBucket {
             TextureHelper.loadTexture("blood-5.png"),
             TextureHelper.loadTexture("blood-6.png"))
 
-    fun freshBlood(x: Float, y: Float, s: Stage) = Blood(blood[(Math.random() * 5f).toInt()], x + (Math.random() * 8.0 - 4.0).toFloat(), y + (Math.random() * 8.0 - 4.0).toFloat(), 32, 32, s, z++)
+    fun freshBlood(pos: Vector2, s: Stage) = Blood(blood[(Math.random() * 5f).toInt()], -16f + pos.x + (8.0 - Math.random() * 16.0).toFloat(), -16f + pos.y + (8.0 - Math.random() * 16.0).toFloat(), 32, 32, s, z++)
 }
 
-class Sword(s: Stage, val owner: AnimatedActor, val hitTimeMs: Long, val offX: Float,
-            val animIdleRight: Animation<TextureRegion>,
-            val animIdleLeft: Animation<TextureRegion>,
-            val animHitRight: Animation<TextureRegion>,
-            val animHitLeft: Animation<TextureRegion>) : BaseActor(owner.x, owner.y, s) {
+class Weapon(s: Stage, val owner: AnimatedActor, val hitTimeMs: Long, val offX: Float,
+             val animIdleRight: Animation<TextureRegion>,
+             val animIdleLeft: Animation<TextureRegion>,
+             val animHitRight: Animation<TextureRegion>,
+             val animHitLeft: Animation<TextureRegion>) : BaseActor(owner.x, owner.y, s) {
 
     private var hitAnim = true
     private var hitStart = 0L
+
+    val range = 16f
 
     init {
         animation = animIdleRight

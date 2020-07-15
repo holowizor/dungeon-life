@@ -106,12 +106,15 @@ abstract class BaseActor : Actor {
     protected val velocityVec: Vector2 = Vector2(0f, 0f)
     protected val accelerationVec: Vector2 = Vector2(0f, 0f)
     val boundaryPolygon = Polygon(boundaryVerticles())
-    var acceleration = 400f
-    var maxSpeed = 100f
-    var deceleration = 400f
+    var acceleration = 200f
+    var maxSpeed = 50f
+    var deceleration = 200f
     var moveByPossibleFun: (dx: Float, dy: Float) -> Boolean = { dx, dy -> true }
+    var midPoint = Vector2(0f, 0f)
 
     open fun boundaryVerticles(): FloatArray = floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f)
+
+    fun pos() = Vector2(x + midPoint.x, y + midPoint.y)
 
     fun thisBoundaryPolygon(): Polygon {
         boundaryPolygon.setPosition(x, y)
@@ -128,9 +131,9 @@ abstract class BaseActor : Actor {
         return if (!poly1.boundingRectangle.overlaps(poly2.boundingRectangle)) false else Intersector.overlapConvexPolygons(poly1, poly2)
     }
 
-    fun distanceFrom(other: BaseActor) = Vector2.dst(this.x, this.y, other.x, other.y)
+    fun distanceFrom(other: BaseActor) = pos().dst(other.pos())
 
-    fun moveTowards(other: BaseActor) = accelerateAtAngle(Vector2(other.x - this.x, other.y - this.y).angle())
+    fun moveTowards(other: BaseActor) = accelerateAtAngle(other.pos().sub(this.pos()).angle())
 
     fun alignCamera() {
         val cam: Camera = stage.camera
@@ -140,6 +143,9 @@ abstract class BaseActor : Actor {
 
         val camx = cam.position.x
         val camy = cam.position.y
+
+        val x = this.x + midPoint.x
+        val y = this.y + midPoint.y
 
         if (x > camx && x - camx > bW) {
             cam.position.x = x + originX - bW
