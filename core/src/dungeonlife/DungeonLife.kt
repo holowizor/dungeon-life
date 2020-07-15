@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.Animation
 import com.badlogic.gdx.graphics.g2d.Batch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
+import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.InputEvent
@@ -20,6 +21,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
+
 
 class MenuScreen : BaseScreen() {
     init {
@@ -64,6 +66,8 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
     val debug: WhitePx
     val spawn: MapObject
 
+    val sword: Sword
+
     init {
         val map = MapReader.readMap(mapAsset)
         val textureMap = HashMap<Int, TypedTexture>()
@@ -80,9 +84,18 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
                 TextureHelper.loadAnimation("elite-knight-walk-right.png", 32, 32, 0, 4),
                 TextureHelper.loadAnimation("elite-knight-walk-left.png", 32, 32, 0, 4),
                 TextureHelper.loadAnimation("elite-knight-idle-right.png", 32, 32, 0, 1),
-                TextureHelper.loadAnimation("elite-knight-idle-left.png", 32, 32, 0, 1))
+                TextureHelper.loadAnimation("elite-knight-idle-left.png", 32, 32, 0, 1),
+                TextureHelper.loadAnimation("elite-knight-idle-right.png", 32, 32, 0, 1, loop = false),
+                TextureHelper.loadAnimation("elite-knight-idle-left.png", 32, 32, 0, 1, loop = false))
         debug = WhitePx(spawn.x, -spawn.y, mainStage, TextureHelper.loadAnimation("white-px.png", 1, 1, 0, 1), knight)
         movables.add(knight)
+
+        sword = Sword(mainStage, knight, 1000L, 5f,
+                TextureHelper.loadAnimation("weapon-anime-sword-idle-right.png", 30, 30, 0, 1),
+                TextureHelper.loadAnimation("weapon-anime-sword-idle-left.png", 30, 30, 0, 1),
+                TextureHelper.loadAnimation("weapon-anime-sword-hit-right.png", 30, 30, 0, 1, loop = false),
+                TextureHelper.loadAnimation("weapon-anime-sword-hit-left.png", 30, 30, 0, 1, loop = false)
+        )
 
         knight.moveByPossibleFun = { dx, dy ->
             floorAt(knight.x + dx + 10, knight.y + dy - 1) &&
@@ -99,7 +112,17 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
                     TextureHelper.loadAnimation("orc-warrior-walk-right.png", 16, 20, 0, 4),
                     TextureHelper.loadAnimation("orc-warrior-walk-left.png", 16, 20, 0, 4),
                     TextureHelper.loadAnimation("orc-warrior-idle-right.png", 16, 20, 0, 4),
-                    TextureHelper.loadAnimation("orc-warrior-idle-left.png", 16, 20, 0, 4))
+                    TextureHelper.loadAnimation("orc-warrior-idle-left.png", 16, 20, 0, 4),
+                    TextureHelper.loadAnimation("orc-warrior-idle-right.png", 16, 20, 0, 4, loop = false),
+                    TextureHelper.loadAnimation("orc-warrior-idle-left.png", 16, 20, 0, 4, loop = false))
+
+            orc.moveByPossibleFun = { dx, dy ->
+                floorAt(orc.x + dx + 2, orc.y + dy - 1) &&
+                        floorAt(orc.x + dx + 13, orc.y + dy - 1) &&
+                        floorAt(orc.x + dx + 2, orc.y + dy + 5) &&
+                        floorAt(orc.x + dx + 13, orc.y + dy + 5)
+            }
+
             orcs.add(orc)
             movables.add(orc)
         }
@@ -145,9 +168,9 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
 
         orcs.forEach {
             if (it.distanceFrom(knight) < 5f * 16f && it.state.isAlive()) {
-                it.moveTowards(knight)
+                //it.moveTowards(knight)
             } else {
-                it.stop()
+                //it.stop()
             }
 
             if (it.overlaps(knight)) {
@@ -183,9 +206,19 @@ class LevelScreen(mapAsset: String) : MappedScreen(mapAsset) {
         super.render(dt)
 
         if (Gdx.input.isKeyPressed(Input.Keys.SPACE)) {
+            // swing sword
+            sword.hit()
             // attack all orcs in range
             orcs.forEach {
-                if (it.distanceFrom(knight) < 16f) {
+                // FIXME weapon range instead of 10f
+                if (it.distanceFrom(knight) < 10f) {
+                    val knightPosition = Vector2(knight.x, knight.y)
+                    val orcPosition = Vector2(it.x, it.y)
+                    val hitVector = orcPosition.sub(knightPosition)
+
+                    it.motionAngle(hitVector.angle());
+                    it.setSpeed(500f)
+
                     it.state.decreaseHealth(knight.heroState.attack)
                     BloodBucket.freshBlood(it.x, it.y, this.mainStage)
                 }
@@ -251,8 +284,9 @@ class WhitePx(x: Float, y: Float, s: Stage, anim: Animation<TextureRegion>, val 
 }
 
 class Knight(x: Float, y: Float, s: Stage, animRight: Animation<TextureRegion>, animLeft: Animation<TextureRegion>,
-             animIdleRight: Animation<TextureRegion>, animIdleLeft: Animation<TextureRegion>) :
-        AnimatedActor(x, y, s, animRight, animLeft, animIdleRight, animIdleLeft) {
+             animIdleRight: Animation<TextureRegion>, animIdleLeft: Animation<TextureRegion>,
+             animDeadRight: Animation<TextureRegion>, animDeadLeft: Animation<TextureRegion>) :
+        AnimatedActor(x, y, s, animRight, animLeft, animIdleRight, animIdleLeft, animDeadRight, animDeadLeft) {
     init {
         width = 32f
         height = 32f
@@ -272,8 +306,9 @@ class Knight(x: Float, y: Float, s: Stage, animRight: Animation<TextureRegion>, 
 }
 
 class Orc(x: Float, y: Float, s: Stage, animRight: Animation<TextureRegion>, animLeft: Animation<TextureRegion>,
-          animIdleRight: Animation<TextureRegion>, animIdleLeft: Animation<TextureRegion>) :
-        AnimatedActor(x, y, s, animRight, animLeft, animIdleRight, animIdleLeft) {
+          animIdleRight: Animation<TextureRegion>, animIdleLeft: Animation<TextureRegion>,
+          animDeadRight: Animation<TextureRegion>, animDeadLeft: Animation<TextureRegion>) :
+        AnimatedActor(x, y, s, animRight, animLeft, animIdleRight, animIdleLeft, animDeadRight, animDeadLeft) {
     init {
         width = 16f
         height = 20f
@@ -303,6 +338,49 @@ object BloodBucket {
 
     fun freshBlood(x: Float, y: Float, s: Stage) = Blood(blood[(Math.random() * 5f).toInt()], x + (Math.random() * 8.0 - 4.0).toFloat(), y + (Math.random() * 8.0 - 4.0).toFloat(), 32, 32, s, z++)
 }
+
+class Sword(s: Stage, val owner: AnimatedActor, val hitTimeMs: Long, val offX: Float,
+            val animIdleRight: Animation<TextureRegion>,
+            val animIdleLeft: Animation<TextureRegion>,
+            val animHitRight: Animation<TextureRegion>,
+            val animHitLeft: Animation<TextureRegion>) : BaseActor(owner.x, owner.y, s) {
+
+    private var hitAnim = true
+    private var hitStart = 0L
+
+    init {
+        animation = animIdleRight
+        width = 30f
+        height = 30f
+    }
+
+    fun hit() {
+        hitAnim = true
+        hitStart = System.currentTimeMillis()
+    }
+
+    override fun act(dt: Float) {
+        super.act(dt)
+        this.x = owner.x + if (owner.moveRight) offX else -offX
+        this.y = owner.y
+        this.zIndex = owner.zIndex - 1
+        setActiveAnimation()
+    }
+
+    private fun setActiveAnimation() {
+        if (System.currentTimeMillis() - hitStart > hitTimeMs) {
+            hitAnim = false
+        }
+
+        val faceRight = owner.moveRight
+        if (hitAnim) {
+            super.animation = if (faceRight) animHitRight else animHitLeft
+        } else {
+            super.animation = if (faceRight) animIdleRight else animIdleLeft
+        }
+    }
+}
+
 
 object DungeonLife : Game() {
 

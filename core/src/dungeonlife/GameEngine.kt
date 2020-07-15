@@ -128,9 +128,9 @@ abstract class BaseActor : Actor {
         return if (!poly1.boundingRectangle.overlaps(poly2.boundingRectangle)) false else Intersector.overlapConvexPolygons(poly1, poly2)
     }
 
-    fun distanceFrom(other:BaseActor) = Vector2.dst(this.x, this.y, other.x, other.y)
+    fun distanceFrom(other: BaseActor) = Vector2.dst(this.x, this.y, other.x, other.y)
 
-    fun moveTowards(other:BaseActor) = accelerateAtAngle(Vector2(other.x-this.x, other.y-this.y).angle())
+    fun moveTowards(other: BaseActor) = accelerateAtAngle(Vector2(other.x - this.x, other.y - this.y).angle())
 
     fun alignCamera() {
         val cam: Camera = stage.camera
@@ -166,7 +166,11 @@ abstract class BaseActor : Actor {
         setSpeed(0.0f)
     }
 
-    private fun setSpeed(speed: Float) {
+    fun motionAngle(angle: Float) {
+        velocityVec.setAngle(angle)
+    }
+
+    fun setSpeed(speed: Float) {
         if (velocityVec.len() == 0f) velocityVec.set(speed, 0f) else velocityVec.setLength(speed)
     }
 
@@ -211,7 +215,9 @@ open class AnimatedActor(x: Float, y: Float, s: Stage,
                          val animRight: Animation<TextureRegion>,
                          val animLeft: Animation<TextureRegion>,
                          val animIdleRight: Animation<TextureRegion>,
-                         val animIdleLeft: Animation<TextureRegion>) : BaseActor(x, y, s) {
+                         val animIdleLeft: Animation<TextureRegion>,
+                         val animDeadRight: Animation<TextureRegion>,
+                         val animDeadLeft: Animation<TextureRegion>) : BaseActor(x, y, s) {
     var moveRight = true
     var idleAnim = true
 
@@ -226,8 +232,12 @@ open class AnimatedActor(x: Float, y: Float, s: Stage,
         setActiveAnimation()
     }
 
+    open fun isDead() = false
+
     private fun setActiveAnimation() {
-        if (velocityVec.len() > 0f) {
+        if (isDead()) {
+            super.animation = if (moveRight) animDeadRight else animDeadLeft
+        } else if (velocityVec.len() > 0f) {
             val tmp = moveRight
             moveRight = !(velocityVec.angle() > 90 && velocityVec.angle() < 270)
             if (tmp != moveRight || idleAnim) {
