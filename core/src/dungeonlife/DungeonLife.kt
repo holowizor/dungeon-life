@@ -65,11 +65,15 @@ class MenuScreen : BaseScreen() {
 }
 
 abstract class MappedScreen(mapAsset: String) : BaseScreen() {
+    val FLIPPED_HORIZONTALLY_FLAG: Long = 0x80000000
+    val FLIPPED_VERTICALLY_FLAG: Long = 0x40000000
+    val FLIPPED_DIAGONALLY_FLAG: Long = 0x20000000
+
     // can walk just on "floor" types
     val tileTypesMap = HashMap<TileCoordinates, MutableSet<String>>()
 
     val knight: Knight
-    val orcs = ArrayList<Orc>()
+    val monsters = ArrayList<Monster>()
     val movables = LinkedList<Actor>()
 
     val debug: WhitePx
@@ -79,13 +83,18 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
 
     init {
         val map = MapReader.readMap(mapAsset)
-        val textureMap = HashMap<Int, TypedTexture>()
+        val textureMap = HashMap<Long, TypedTexture>()
         map.textures.forEach { texture -> textureMap.putAll(TextureMapReader.readTextureMap(texture.firstGid, texture.source)) }
         map.tileMap.forEach { tileCoordinates, mapTile ->
-            mapTile.gids.forEach {
-                // FIXME add empty texture here! with empty type!
-                Tile(textureMap[it]!!.textureRegion, tileCoordinates.x, -tileCoordinates.y, map.tileWidth, mainStage)
-                tileTypesMap.getOrPut(TileCoordinates(tileCoordinates.x, -tileCoordinates.y)) { mutableSetOf() }.add(textureMap[it]!!.type)
+            mapTile.gids.forEach { gid ->
+
+                val originGid = gid and 0x0000FFFF
+                //(gid.toLong() and (FLIPPED_HORIZONTALLY_FLAG or FLIPPED_VERTICALLY_FLAG or FLIPPED_DIAGONALLY_FLAG).inv()).toInt()
+
+                textureMap[originGid]?.let { tt ->
+                    Tile(tt.textureRegion, tileCoordinates.x, -tileCoordinates.y, map.tileWidth, mainStage)
+                    tileTypesMap.getOrPut(TileCoordinates(tileCoordinates.x, -tileCoordinates.y)) { mutableSetOf() }.add(tt.type)
+                }
             }
         }
         spawn = (map.objectMap["spawn"] ?: error("No spawn point"))[0]
@@ -107,6 +116,8 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
                     floorAt(knight.x + dx + 22, knight.y + dy + 6)
         }
         initOrcs(map.objectMap["orc"])
+        initMaskedOrcs(map.objectMap["orc2"])
+        initBoss(map.objectMap["boss"])
     }
 
     private fun initOrcs(orcObjects: List<MapObject>?) {
@@ -120,8 +131,41 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
                         floorAt(orc.x + dx + 13, orc.y + dy + 5)
             }
 
-            orcs.add(orc)
+            monsters.add(orc)
             movables.add(orc)
+        }
+    }
+
+    private fun initMaskedOrcs(orcObjects: List<MapObject>?) {
+        orcObjects?.forEach {
+            val orc = MaskedOrc(it.x, -it.y, mainStage)
+
+            orc.moveByPossibleFun = { dx, dy ->
+                floorAt(orc.x + dx + 2, orc.y + dy - 1) &&
+                        floorAt(orc.x + dx + 13, orc.y + dy - 1) &&
+                        floorAt(orc.x + dx + 2, orc.y + dy + 5) &&
+                        floorAt(orc.x + dx + 13, orc.y + dy + 5)
+            }
+
+            monsters.add(orc)
+            movables.add(orc)
+        }
+    }
+
+    private fun initBoss(finalBossObjects: List<MapObject>?) {
+        finalBossObjects?.forEach {
+            val finalBoss = FinalBoss(it.x, -it.y, mainStage)
+
+
+            finalBoss.moveByPossibleFun = { dx, dy ->
+                floorAt(knight.x + dx + 10, knight.y + dy - 1) &&
+                        floorAt(knight.x + dx + 22, knight.y + dy - 1) &&
+                        floorAt(knight.x + dx + 10, knight.y + dy + 6) &&
+                        floorAt(knight.x + dx + 22, knight.y + dy + 6)
+            }
+
+            monsters.add(finalBoss)
+            movables.add(finalBoss)
         }
     }
 
@@ -166,7 +210,7 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
         }
 
         // FIXME move to level class?
-        orcs.forEach {
+        monsters.forEach {
             // detection range
             if (it.distanceFrom(knight) < it.range && !it.stunned) {
                 if (it.canAttack()) {
@@ -203,7 +247,7 @@ class BackyardScreen(mapAsset: String) : MappedScreen(mapAsset) {
                 tilesAt(knight.x + 22, knight.y + 6).contains("stairs")) {
 
             reset()
-            DungeonLife.level()
+            DungeonLife.level1()
         }
     }
 }
@@ -231,13 +275,13 @@ class EnlightenedBackyardScreen(mapAsset: String) : MappedScreen(mapAsset) {
                 tilesAt(knight.x + 22, knight.y + 6).contains("stairs")) {
 
             reset()
-            DungeonLife.level()
+            DungeonLife.level1()
         }
         rayHandler.updateAndRender()
     }
 }
 
-class LevelScreen(mapAsset: String) : MappedScreen(mapAsset) {
+class LevelScreen(mapAsset: String, val nextLevel: () -> Unit) : MappedScreen(mapAsset) {
 
     override fun keyDown(keycode: Int): Boolean {
         when (keycode) {
@@ -247,9 +291,9 @@ class LevelScreen(mapAsset: String) : MappedScreen(mapAsset) {
                     weapon.hit()
 
                     // attack all orcs in range
-                    orcs.forEach {
+                    monsters.forEach {
                         if (it.distanceFrom(knight) < weapon.range) {
-                            println("orc ${it.pos()} knight ${knight.pos()}")
+                            println("monster ${it.pos()} knight ${knight.pos()}")
 
                             it.setSpeed(500f)
                             it.motionAngle(it.pos().sub(knight.pos()).angle());
@@ -274,7 +318,7 @@ class LevelScreen(mapAsset: String) : MappedScreen(mapAsset) {
                 tilesAt(knight.x + 10, knight.y + 6).contains("stairs") ||
                 tilesAt(knight.x + 22, knight.y + 6).contains("stairs")) {
             reset()
-            DungeonLife.backyard()
+            nextLevel()
         }
     }
 }
@@ -284,7 +328,8 @@ object DungeonLife : Game() {
     // BAD DESIGN
     private var menuScreen: MenuScreen? = null
     private var backyard: BackyardScreen? = null
-    private var level: LevelScreen? = null
+    private var level1: LevelScreen? = null
+    private var level2: LevelScreen? = null
 
     override fun create() {
         Gdx.input.inputProcessor = InputMultiplexer()
@@ -292,10 +337,10 @@ object DungeonLife : Game() {
         // BAD DESIGN
         menuScreen = MenuScreen()
         backyard = BackyardScreen("backyard.json")
-        level = LevelScreen("level1.json")
+        level1 = LevelScreen("level1.json") { level2() }
+        level2 = LevelScreen("level2.json") { backyard() }
 
         menu()
-        //backyard()
     }
 
     fun menu() {
@@ -303,9 +348,15 @@ object DungeonLife : Game() {
         screen.show()
     }
 
-    fun level() {
-        (level ?: error("No level screen")).reset()
-        screen = level
+    fun level1() {
+        (level1 ?: error("No level screen")).reset()
+        screen = level1
+        screen.show()
+    }
+
+    fun level2() {
+        (level2 ?: error("No level screen")).reset()
+        screen = level2
         screen.show()
     }
 

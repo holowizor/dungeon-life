@@ -111,8 +111,8 @@ class Orc(x: Float, y: Float, s: Stage) : Monster(x, y, s, 20f, 5f, 10f,
         TextureHelper.loadAnimation("orc-warrior-walk-left.png", 16, 20, 0, 4),
         TextureHelper.loadAnimation("orc-warrior-idle-right.png", 16, 20, 0, 4),
         TextureHelper.loadAnimation("orc-warrior-idle-left.png", 16, 20, 0, 4),
-        TextureHelper.loadAnimation("orc-warrior-idle-right.png", 16, 20, 0, 4, loop = false),
-        TextureHelper.loadAnimation("orc-warrior-idle-left.png", 16, 20, 0, 4, loop = false)) {
+        TextureHelper.loadAnimation("orc-warrior-dead-right.png", 20, 16, 0, 1, loop = false),
+        TextureHelper.loadAnimation("orc-warrior-dead-left.png", 20, 16, 0, 1, loop = false)) {
 
     init {
         width = 16f
@@ -122,4 +122,39 @@ class Orc(x: Float, y: Float, s: Stage) : Monster(x, y, s, 20f, 5f, 10f,
     }
 
     override fun boundaryVerticles(): FloatArray = floatArrayOf(2f, 0f, 13f, 0f, 13f, 5f, 2f, 5f)
+}
+
+class MaskedOrc(x: Float, y: Float, s: Stage) : Monster(x, y, s, 20f, 5f, 10f,
+        TextureHelper.loadAnimation("masked-orc-walk-right.png", 16, 20, 0, 4),
+        TextureHelper.loadAnimation("masked-orc-walk-left.png", 16, 20, 0, 4),
+        TextureHelper.loadAnimation("masked-orc-idle-right.png", 16, 20, 0, 4),
+        TextureHelper.loadAnimation("masked-orc-idle-left.png", 16, 20, 0, 4),
+        TextureHelper.loadAnimation("masked-orc-dead-right.png", 20, 16, 0, 1, loop = false),
+        TextureHelper.loadAnimation("masked-orc-dead-left.png", 20, 16, 0, 1, loop = false)) {
+
+    init {
+        width = 16f
+        height = 20f
+
+        midPoint = Vector2(6f, 6f)
+    }
+
+    override fun boundaryVerticles(): FloatArray = floatArrayOf(2f, 0f, 13f, 0f, 13f, 5f, 2f, 5f)
+}
+
+class FinalBoss(x: Float, y: Float, s: Stage) : Monster(x, y, s, 20f, 5f, 10f,
+        TextureHelper.loadAnimation("knight-walk-right.png", 32, 32, 0, 4),
+        TextureHelper.loadAnimation("knight-walk-left.png", 32, 32, 0, 4),
+        TextureHelper.loadAnimation("knight-idle-right.png", 32, 32, 0, 4),
+        TextureHelper.loadAnimation("knight-idle-left.png", 32, 32, 0, 4),
+        TextureHelper.loadAnimation("knight-dead-right.png", 32, 32, 0, 1, loop = false),
+        TextureHelper.loadAnimation("knight-dead-left.png", 32, 32, 0, 1, loop = false)) {
+
+    init {
+        width = 32f
+        height = 32f
+
+        midPoint = Vector2(17f, 8f)
+    }
+    override fun boundaryVerticles(): FloatArray = floatArrayOf(10f, 0f, 22f, 0f, 22f, 8f, 10f, 8f)
 }

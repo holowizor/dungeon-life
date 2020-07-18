@@ -96,7 +96,7 @@ class Weapon(s: Stage, val owner: AnimatedActor, val hitTimeMs: Long, val offX: 
         super.act(dt)
         this.x = owner.x + if (owner.moveRight) offX else -offX
         this.y = owner.y
-        this.zIndex = owner.zIndex - 1
+        this.zIndex = if (owner.zIndex > 0) owner.zIndex - 1 else 0
         setActiveAnimation()
     }
 

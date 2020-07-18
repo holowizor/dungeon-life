@@ -11,8 +11,8 @@ import com.badlogic.gdx.utils.JsonValue
 
 object TextureMapReader {
 
-    fun readTextureMap(initGid: Int, textureMapAsset: String): Map<Int, TypedTexture> {
-        val textureMap = HashMap<Int, TypedTexture>()
+    fun readTextureMap(initGid: Long, textureMapAsset: String): Map<Long, TypedTexture> {
+        val textureMap = HashMap<Long, TypedTexture>()
 
         val json = JsonReader()
         val base = json.parse(Gdx.files.internal(textureMapAsset))

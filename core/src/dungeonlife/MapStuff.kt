@@ -11,7 +11,7 @@ object MapReader {
         val base = json.parse(Gdx.files.internal(mapAsset))
 
         val tileWidth = base.getInt("tilewidth", 16)
-        val textures = base.get("tilesets").asIterable().map { MapTexture(it.getInt("firstgid"), it.getString("source")) }
+        val textures = base.get("tilesets").asIterable().map { MapTexture(it.getLong("firstgid"), it.getString("source")) }
         val tiles = parseLayers(base.get("layers").asIterable())
         val objects = parseObjects(base.get("layers").asIterable())
 
@@ -31,12 +31,12 @@ object MapReader {
         val width = chunk.getInt("width")
         val x = chunk.getInt("x")
         val y = chunk.getInt("y")
-        val data = chunk.get("data").asIntArray()
+        val data = chunk.get("data").asLongArray()
 
         data.forEachIndexed { index, gid -> if (gid > 0) createOrUpdateTile(x, y, width, index, gid, tileMap) }
     }
 
-    private fun createOrUpdateTile(chunkStartX: Int, chunkStartY: Int, chunkWidth: Int, index: Int, gid: Int, tileMap: java.util.HashMap<TileCoordinates, MapTile>) {
+    private fun createOrUpdateTile(chunkStartX: Int, chunkStartY: Int, chunkWidth: Int, index: Int, gid: Long, tileMap: java.util.HashMap<TileCoordinates, MapTile>) {
         val cx = index % chunkWidth
         val cy = index / chunkWidth
         val tc = TileCoordinates(chunkStartX + cx, chunkStartY + cy)
@@ -67,9 +67,9 @@ class LevelMap(val tileWidth: Int = 16,
                val tileMap: Map<TileCoordinates, MapTile> = HashMap(),
                val objectMap: Map<String, List<MapObject>> = HashMap())
 
-class MapTexture(val firstGid: Int, val source: String)
+class MapTexture(val firstGid: Long, val source: String)
 
-class MapTile(val gids: MutableList<Int> = ArrayList())
+class MapTile(val gids: MutableList<Long> = ArrayList())
 
 data class TileCoordinates(val x: Int, val y: Int)
 
