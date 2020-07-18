@@ -7,6 +7,23 @@ import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
 
+class Logo(x: Float, y: Float, s: Stage) : Actor() {
+    val tex = TextureHelper.loadTexture("welcome-logo.png")
+    init {
+        this.x = x
+        this.y = y
+        width = 640f
+        height = 480f
+
+        s.addActor(this)
+    }
+
+    override fun draw(batch: Batch, parentAlpha: Float) {
+        batch.draw(tex, x, y)
+        super.draw(batch, parentAlpha)
+    }
+}
+
 class Tile(val tex: TextureRegion, gridX: Int, gridY: Int, tileWidth: Int, s: Stage) : Actor() {
     init {
         x = gridX.toFloat() * 16

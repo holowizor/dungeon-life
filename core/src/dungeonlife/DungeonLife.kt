@@ -8,8 +8,6 @@ import com.badlogic.gdx.Input
 import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Texture
-import com.badlogic.gdx.graphics.g2d.Animation
-import com.badlogic.gdx.graphics.g2d.Batch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.physics.box2d.World
@@ -17,7 +15,6 @@ import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Event
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.InputEvent.Type
-import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.ui.Button
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle
@@ -26,9 +23,10 @@ import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
-
 class MenuScreen : BaseScreen() {
     init {
+        val logo = Logo(0f, 0f, this.mainStage)
+
         val uiTable = Table()
         uiTable.setFillParent(true)
         uiStage.addActor(uiTable)
@@ -40,6 +38,13 @@ class MenuScreen : BaseScreen() {
         val quitButtonStyle = TextButtonStyle()
         quitButtonStyle.up = TextureRegionDrawable(TextureRegion(Texture(Gdx.files.internal("btn-quit.png"))))
         val quitButton = Button(quitButtonStyle)
+
+        startButton.addListener { e: Event ->
+            if (e !is InputEvent) return@addListener false
+            if (!e.getType().equals(Type.touchDown)) return@addListener false
+            DungeonLife.backyard()
+            true
+        }
 
         quitButton.addListener { e: Event ->
             if (e !is InputEvent) return@addListener false
@@ -277,6 +282,7 @@ class LevelScreen(mapAsset: String) : MappedScreen(mapAsset) {
 object DungeonLife : Game() {
 
     // BAD DESIGN
+    private var menuScreen: MenuScreen? = null
     private var backyard: BackyardScreen? = null
     private var level: LevelScreen? = null
 
@@ -284,10 +290,17 @@ object DungeonLife : Game() {
         Gdx.input.inputProcessor = InputMultiplexer()
 
         // BAD DESIGN
+        menuScreen = MenuScreen()
         backyard = BackyardScreen("backyard.json")
         level = LevelScreen("level1.json")
 
-        backyard()
+        menu()
+        //backyard()
+    }
+
+    fun menu() {
+        screen = menuScreen
+        screen.show()
     }
 
     fun level() {
