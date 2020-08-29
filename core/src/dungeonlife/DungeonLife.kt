@@ -42,7 +42,7 @@ class MenuScreen : BaseScreen() {
         startButton.addListener { e: Event ->
             if (e !is InputEvent) return@addListener false
             if (!e.getType().equals(Type.touchDown)) return@addListener false
-            DungeonLife.backyard()
+            DungeonLife.level()
             true
         }
 
@@ -65,9 +65,6 @@ class MenuScreen : BaseScreen() {
 }
 
 abstract class MappedScreen(mapAsset: String) : BaseScreen() {
-    val FLIPPED_HORIZONTALLY_FLAG: Long = 0x80000000
-    val FLIPPED_VERTICALLY_FLAG: Long = 0x40000000
-    val FLIPPED_DIAGONALLY_FLAG: Long = 0x20000000
 
     // can walk just on "floor" types
     val tileTypesMap = HashMap<TileCoordinates, MutableSet<String>>()
@@ -76,7 +73,6 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
     val monsters = ArrayList<Monster>()
     val movables = LinkedList<Actor>()
 
-    val debug: WhitePx
     val spawn: MapObject
 
     val weapon: Weapon
@@ -85,21 +81,18 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
         val map = MapReader.readMap(mapAsset)
         val textureMap = HashMap<Long, TypedTexture>()
         map.textures.forEach { texture -> textureMap.putAll(TextureMapReader.readTextureMap(texture.firstGid, texture.source)) }
+        var idx = 0
         map.tileMap.forEach { tileCoordinates, mapTile ->
-            mapTile.gids.forEach { gid ->
-
-                val originGid = gid and 0x0000FFFF
-                //(gid.toLong() and (FLIPPED_HORIZONTALLY_FLAG or FLIPPED_VERTICALLY_FLAG or FLIPPED_DIAGONALLY_FLAG).inv()).toInt()
-
+            mapTile.gids.forEach { gidz ->
+                val originGid = gidz.gid and 0x0000FFFF
                 textureMap[originGid]?.let { tt ->
-                    Tile(tt.textureRegion, tileCoordinates.x, -tileCoordinates.y, map.tileWidth, mainStage)
+                    Tile(tt.textureRegion, tileCoordinates.x, -tileCoordinates.y, map.tileWidth, (idx++) + gidz.z, mainStage)
                     tileTypesMap.getOrPut(TileCoordinates(tileCoordinates.x, -tileCoordinates.y)) { mutableSetOf() }.add(tt.type)
                 }
             }
         }
         spawn = (map.objectMap["spawn"] ?: error("No spawn point"))[0]
         knight = Knight(spawn.x, -spawn.y, mainStage)
-        debug = WhitePx(spawn.x, -spawn.y, mainStage, TextureHelper.loadAnimation("white-px.png", 1, 1, 0, 1), knight)
         movables.add(knight)
 
         weapon = Weapon(mainStage, knight, 400L, 5f,
@@ -184,7 +177,7 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
 
     fun floorAt(x: Float, y: Float): Boolean {
         val tiles = tilesAt(x, y)
-        return tiles.size > 0 && !tiles.contains("wall")
+        return tiles.size > 0 && tiles.contains("floor")
     }
 
     override fun keyDown(keycode: Int): Boolean {
@@ -209,10 +202,9 @@ abstract class MappedScreen(mapAsset: String) : BaseScreen() {
                 knight.accelerateAtAngle(270f)
         }
 
-        // FIXME move to level class?
         monsters.forEach {
             // detection range
-            if (it.distanceFrom(knight) < it.range && !it.stunned) {
+            if (it.distanceFrom(knight) < it.range && !it.isDead() && !it.stunned) {
                 if (it.canAttack()) {
                     it.attack()
                     //knight.stun()
@@ -247,7 +239,7 @@ class BackyardScreen(mapAsset: String) : MappedScreen(mapAsset) {
                 tilesAt(knight.x + 22, knight.y + 6).contains("stairs")) {
 
             reset()
-            DungeonLife.level1()
+            DungeonLife.level()
         }
     }
 }
@@ -275,13 +267,24 @@ class EnlightenedBackyardScreen(mapAsset: String) : MappedScreen(mapAsset) {
                 tilesAt(knight.x + 22, knight.y + 6).contains("stairs")) {
 
             reset()
-            DungeonLife.level1()
+            DungeonLife.level()
         }
         rayHandler.updateAndRender()
     }
 }
 
 class LevelScreen(mapAsset: String, val nextLevel: () -> Unit) : MappedScreen(mapAsset) {
+
+    val rayHandler: RayHandler
+    val pointLight: PointLight
+
+    init {
+        rayHandler = RayHandler(World(Vector2(0f, 0f), false))
+        rayHandler.setCombinedMatrix(mainStage.camera.combined, 0f, 0f,
+                mainStage.viewport.screenWidth.toFloat(),
+                mainStage.viewport.screenWidth.toFloat())   //<-- pass your camera combined matrix
+        pointLight = PointLight(rayHandler, 10, Color(0.75f, 0.75f, 0.5f, 0.75f), 300f, 0f, 0f);
+    }
 
     override fun keyDown(keycode: Int): Boolean {
         when (keycode) {
@@ -290,7 +293,7 @@ class LevelScreen(mapAsset: String, val nextLevel: () -> Unit) : MappedScreen(ma
                     // swing sword
                     weapon.hit()
 
-                    // attack all orcs in range
+                    // attack monsters in range
                     monsters.forEach {
                         if (it.distanceFrom(knight) < weapon.range) {
                             println("monster ${it.pos()} knight ${knight.pos()}")
@@ -313,6 +316,10 @@ class LevelScreen(mapAsset: String, val nextLevel: () -> Unit) : MappedScreen(ma
     override fun render(dt: Float) {
         super.render(dt)
 
+        val coords = knight.pos()
+        knight.stage.stageToScreenCoordinates(coords)
+        pointLight.setPosition(coords.x, 480f - coords.y)
+
         if (tilesAt(knight.x + 10, knight.y - 1).contains("stairs") ||
                 tilesAt(knight.x + 22, knight.y - 1).contains("stairs") ||
                 tilesAt(knight.x + 10, knight.y + 6).contains("stairs") ||
@@ -320,6 +327,8 @@ class LevelScreen(mapAsset: String, val nextLevel: () -> Unit) : MappedScreen(ma
             reset()
             nextLevel()
         }
+
+        rayHandler.updateAndRender()
     }
 }
 
@@ -327,18 +336,14 @@ object DungeonLife : Game() {
 
     // BAD DESIGN
     private var menuScreen: MenuScreen? = null
-    private var backyard: BackyardScreen? = null
-    private var level1: LevelScreen? = null
-    private var level2: LevelScreen? = null
+    private var level: LevelScreen? = null
 
     override fun create() {
         Gdx.input.inputProcessor = InputMultiplexer()
 
         // BAD DESIGN
         menuScreen = MenuScreen()
-        backyard = BackyardScreen("backyard.json")
-        level1 = LevelScreen("level1.json") { level2() }
-        level2 = LevelScreen("level2.json") { backyard() }
+        level = LevelScreen("level3.json") { menu() }
 
         menu()
     }
@@ -348,21 +353,10 @@ object DungeonLife : Game() {
         screen.show()
     }
 
-    fun level1() {
-        (level1 ?: error("No level screen")).reset()
-        screen = level1
-        screen.show()
-    }
 
-    fun level2() {
-        (level2 ?: error("No level screen")).reset()
-        screen = level2
-        screen.show()
-    }
-
-    fun backyard() {
-        (backyard ?: error("No backyard screen")).reset()
-        screen = backyard
+    fun level() {
+        (level ?: error("No level screen")).reset()
+        screen = level
         screen.show()
     }
 

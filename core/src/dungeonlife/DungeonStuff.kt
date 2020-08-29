@@ -24,12 +24,14 @@ class Logo(x: Float, y: Float, s: Stage) : Actor() {
     }
 }
 
-class Tile(val tex: TextureRegion, gridX: Int, gridY: Int, tileWidth: Int, s: Stage) : Actor() {
+class Tile(val tex: TextureRegion, gridX: Int, gridY: Int, tileWidth: Int, z: Int, s: Stage) : Actor() {
     init {
         x = gridX.toFloat() * 16
         y = gridY.toFloat() * 16
         width = tileWidth.toFloat()
         height = tileWidth.toFloat()
+        // FIXME does not work
+        zIndex = z
 
         s.addActor(this)
     }
@@ -58,7 +60,7 @@ class Blood(val tex: TextureRegion, x: Float, y: Float, bloodHeight: Int, bloodW
 }
 
 object BloodBucket {
-    var z = 50000
+    var z = 75000
 
     val blood = arrayOf(TextureHelper.loadTexture("blood-1.png"),
             TextureHelper.loadTexture("blood-2.png"),

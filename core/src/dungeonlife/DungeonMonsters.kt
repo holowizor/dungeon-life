@@ -124,7 +124,7 @@ class Orc(x: Float, y: Float, s: Stage) : Monster(x, y, s, 20f, 5f, 10f,
     override fun boundaryVerticles(): FloatArray = floatArrayOf(2f, 0f, 13f, 0f, 13f, 5f, 2f, 5f)
 }
 
-class MaskedOrc(x: Float, y: Float, s: Stage) : Monster(x, y, s, 20f, 5f, 10f,
+class MaskedOrc(x: Float, y: Float, s: Stage) : Monster(x, y, s, 40f, 15f, 30f,
         TextureHelper.loadAnimation("masked-orc-walk-right.png", 16, 20, 0, 4),
         TextureHelper.loadAnimation("masked-orc-walk-left.png", 16, 20, 0, 4),
         TextureHelper.loadAnimation("masked-orc-idle-right.png", 16, 20, 0, 4),
@@ -142,7 +142,7 @@ class MaskedOrc(x: Float, y: Float, s: Stage) : Monster(x, y, s, 20f, 5f, 10f,
     override fun boundaryVerticles(): FloatArray = floatArrayOf(2f, 0f, 13f, 0f, 13f, 5f, 2f, 5f)
 }
 
-class FinalBoss(x: Float, y: Float, s: Stage) : Monster(x, y, s, 20f, 5f, 10f,
+class FinalBoss(x: Float, y: Float, s: Stage) : Monster(x, y, s, 200f, 50f, 50f,
         TextureHelper.loadAnimation("knight-walk-right.png", 32, 32, 0, 4),
         TextureHelper.loadAnimation("knight-walk-left.png", 32, 32, 0, 4),
         TextureHelper.loadAnimation("knight-idle-right.png", 32, 32, 0, 4),
@@ -156,5 +156,6 @@ class FinalBoss(x: Float, y: Float, s: Stage) : Monster(x, y, s, 20f, 5f, 10f,
 
         midPoint = Vector2(17f, 8f)
     }
+
     override fun boundaryVerticles(): FloatArray = floatArrayOf(10f, 0f, 22f, 0f, 22f, 8f, 10f, 8f)
 }
