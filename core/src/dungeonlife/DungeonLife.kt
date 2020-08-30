@@ -247,18 +247,15 @@ class BackyardScreen(mapAsset: String) : MappedScreen(mapAsset) {
 class EnlightenedBackyardScreen(mapAsset: String) : MappedScreen(mapAsset) {
 
     val rayHandler: RayHandler
-    val pointLight: PointLight
 
     init {
         rayHandler = RayHandler(World(Vector2(0f, 0f), false))
         rayHandler.setCombinedMatrix(mainStage.camera.combined, 0f, 0f,
                 mainStage.viewport.screenWidth.toFloat(),
                 mainStage.viewport.screenWidth.toFloat())   //<-- pass your camera combined matrix
-        pointLight = PointLight(rayHandler, 10, Color.WHITE, 300f, knight.x, knight.y);
     }
 
     override fun render(dt: Float) {
-        pointLight.setPosition(320f, 240f)
         super.render(dt)
 
         if (tilesAt(knight.x + 10, knight.y - 1).contains("stairs") ||
@@ -273,17 +270,23 @@ class EnlightenedBackyardScreen(mapAsset: String) : MappedScreen(mapAsset) {
     }
 }
 
+class MonsterPointLightPair(val actor: AnimatedActor, val light: PointLight)
+
 class LevelScreen(mapAsset: String, val nextLevel: () -> Unit) : MappedScreen(mapAsset) {
 
     val rayHandler: RayHandler
-    val pointLight: PointLight
+    val monsterLights = ArrayList<MonsterPointLightPair>()
 
     init {
         rayHandler = RayHandler(World(Vector2(0f, 0f), false))
         rayHandler.setCombinedMatrix(mainStage.camera.combined, 0f, 0f,
                 mainStage.viewport.screenWidth.toFloat(),
                 mainStage.viewport.screenWidth.toFloat())   //<-- pass your camera combined matrix
-        pointLight = PointLight(rayHandler, 10, Color(0.75f, 0.75f, 0.5f, 0.75f), 300f, 0f, 0f);
+
+        monsterLights.add(MonsterPointLightPair(this.knight, PointLight(rayHandler, 10, Color(0.65f, 0.65f, 0.5f, 0.65f), 300f, 0f, 0f)))
+        this.monsters.forEach {
+            monsterLights.add(MonsterPointLightPair(it, PointLight(rayHandler, 10, Color(0.75f, 0.25f, 0.15f, 0.45f), 300f, 0f, 0f)))
+        }
     }
 
     override fun keyDown(keycode: Int): Boolean {
@@ -316,16 +319,23 @@ class LevelScreen(mapAsset: String, val nextLevel: () -> Unit) : MappedScreen(ma
     override fun render(dt: Float) {
         super.render(dt)
 
-        val coords = knight.pos()
-        knight.stage.stageToScreenCoordinates(coords)
-        pointLight.setPosition(coords.x, 480f - coords.y)
-
         if (tilesAt(knight.x + 10, knight.y - 1).contains("stairs") ||
                 tilesAt(knight.x + 22, knight.y - 1).contains("stairs") ||
                 tilesAt(knight.x + 10, knight.y + 6).contains("stairs") ||
                 tilesAt(knight.x + 22, knight.y + 6).contains("stairs")) {
             reset()
             nextLevel()
+        }
+
+        // optimize - remove when dead
+        // optimize - add when distance is < 700 or something
+        monsterLights.forEach {
+            val coords = it.actor.pos()
+            it.actor.stage.stageToScreenCoordinates(coords)
+            it.light.setPosition(coords.x, 480f - coords.y)
+            if (it.actor.isDead()) {
+                it.light.color = Color(0.0f, 0.0f, 0.0f, 0.0f)
+            }
         }
 
         rayHandler.updateAndRender()
