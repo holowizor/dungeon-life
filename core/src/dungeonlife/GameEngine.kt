@@ -197,6 +197,15 @@ abstract class BaseActor : Actor {
         // update position according to value stored in velocity vector
         if (moveByPossibleFun(velocityVec.x * dt, velocityVec.y * dt)) {
             moveBy(velocityVec.x * dt, velocityVec.y * dt)
+        } else {
+            // bounce back
+            val ang = velocityVec.angle()
+            if (ang in listOf<Float>(0f, 90f, 180f, 270f))
+                velocityVec.rotate(180f)
+            else if (ang < 90f && ang > 270f)
+                velocityVec.rotate(270f)
+            else
+                velocityVec.rotate(90f)
         }
 
         // reset acceleration

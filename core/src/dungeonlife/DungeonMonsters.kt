@@ -40,7 +40,8 @@ class Knight(x: Float, y: Float, s: Stage) :
         height = 32f
 
         maxSpeed = 75f
-        deceleration = 100f
+        deceleration = 300f
+        acceleration = 300f
         midPoint = Vector2(17f, 8f)
 
         stunnedMillis = 500L
